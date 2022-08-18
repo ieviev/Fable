@@ -151,6 +151,7 @@ let argLanguage (args: CliArgs) =
     | "php" | "Php" | "PHP" -> Php
     | "dart" -> Dart
     | "rust" | "Rust" -> Rust
+    | "al" | "AL" -> AL
     | _ -> JavaScript)
 
 type Runner =
@@ -237,6 +238,7 @@ type Runner =
             | Python -> "FABLE_COMPILER_PYTHON"
             | TypeScript -> "FABLE_COMPILER_TYPESCRIPT"
             | JavaScript -> "FABLE_COMPILER_JAVASCRIPT"
+            | AL -> "FABLE_COMPILER_AL"
         ]
         |> List.distinct
 
