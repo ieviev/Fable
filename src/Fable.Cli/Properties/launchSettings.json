@@ -2,7 +2,7 @@
   "profiles": {
     "Fable.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "src/quicktest-dart --lang dart --noCache --exclude Fable.Core",
+      "commandLineArgs": "src/quicktest-al --lang al --noCache --exclude Fable.Core --fableLib \"C:\\Users\\kast\\Documents\\GitHub\\Fable\\src\\fable-library-al\"",
       "workingDirectory": "../../../../.."
     }
   }

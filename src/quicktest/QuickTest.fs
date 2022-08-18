@@ -78,3 +78,7 @@ let measureTime (f: unit -> unit) = emitJsStatement () """
 // to Fable.Tests project. For example:
 // testCase "Addition works" <| fun () ->
 //     2 + 2 |> equal 4
+
+
+testCase "Addition works" <| fun () ->
+     2 + 2 |> equal 4
