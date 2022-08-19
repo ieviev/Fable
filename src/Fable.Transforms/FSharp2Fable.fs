@@ -1479,7 +1479,11 @@ let rec private transformDeclarations (com: FableCompiler) ctx fsDecls =
                               Tags = Fable.Tags.empty
                               XmlDoc = tryGetXmlDoc fsEnt.XmlDoc }]
             // This adds modules in the AST for languages that support them (like Rust)
-            | sub when (fsEnt.IsFSharpModule || fsEnt.IsNamespace) && (com :> Compiler).Options.Language = Rust ->
+            | sub when (fsEnt.IsFSharpModule || fsEnt.IsNamespace)
+                       &&
+                            let lang = (com :> Compiler).Options.Language
+                            lang = Rust || lang = AL
+                       ->
                 let entRef = FsEnt.Ref fsEnt
                 let members = transformDeclarations com ctx sub
                 [Fable.ModuleDeclaration

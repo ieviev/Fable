@@ -2,8 +2,11 @@
 namespace ;
 
 #0
-OBJECT Codeunit1
+MEMBER Codeunit1_test1
 
 #1
-MEMBER Codeunit1__test1
+MEMBER Codeunit1_test2
+
+#2
+MEMBER main
 

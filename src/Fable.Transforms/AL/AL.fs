@@ -1,150 +1,138 @@
 namespace rec Fable.AST.AL
 
-
-//type ALPrimitive =
-//  | Text of length: int option
-//  | Code of length: int option
-//  | DateTime
-//  | Boolean
-//  | Decimal
-//  | Char
-//  | Option of values: string list
-//  | Integer
-
-//type ALSimpleType =
-//    | Primitive of ALPrimitive
-//    | SimpleType of typename:string
-//    | List of listArg : ALSimpleType
-//    | JsonToken
-//    | JsonArray
-//    | JsonObject
+open Fable.AST.AL
 
 
-//type PhpConst =
-//    | PhpConstNumber of float
-//    | PhpConstString of string
-//    | PhpConstBool of bool
-//    | PhpConstNull
-//
-//type PhpArrayIndex =
-//    | PhpArrayNoIndex
-//    | PhpArrayInt of int
-//    | PhpArrayString of string
-//
-//type PhpField =
-//    { Name: string
-//      Type: string }
-//
-//type Capture =
-//    | ByValue of string
-//    | ByRef of string
-//
-//type Prop =
-//    | Field of PhpField
-//    | StrField of string
-//
-//type PhpIdentity =
-//    { Namespace: string option
-//      Class: string option
-//      Name: string
-//    }
-//
-//and PhpExpr =
-//      // Php Variable name (without the $)
-//    | PhpVar of string * typ: PhpType option
-//      // Php Identifier for functions and class names
-//    | PhpIdent of PhpIdentity
-//      // Php global (rendered as $GLOBLAS['name']
-//    | PhpGlobal of string
-//    | PhpConst of PhpConst
-//    | PhpUnaryOp of string * PhpExpr
-//    | PhpBinaryOp of string *PhpExpr * PhpExpr
-//    | PhpField of PhpExpr * Prop * typ: PhpType option
-//    | PhpArrayAccess of PhpExpr * PhpExpr
-//    | PhpNew of ty:PhpTypeRef * args:PhpExpr list
-//    | PhpNewArray of args: (PhpArrayIndex * PhpExpr) list
-//    | PhpFunctionCall of f: PhpExpr * args: PhpExpr list
-//    | PhpMethodCall of this: PhpExpr * func:PhpExpr * args: PhpExpr list
-//    | PhpTernary of gard: PhpExpr * thenExpr: PhpExpr * elseExpr: PhpExpr
-//    | PhpInstanceOf of expr: PhpExpr * PhpTypeRef
-//    | PhpAnonymousFunc of args: string list * uses: Capture list * body: PhpStatement list
-//    | PhpMacro of macro: string * args: PhpExpr list
-//    | PhpParent
-//
-//and PhpStatement =
-//    | PhpReturn of PhpExpr
-//    | PhpExpr of PhpExpr
-//    | PhpSwitch of PhpExpr * (PhpCase * PhpStatement list) list
-//    | PhpBreak of int option
-//    | PhpAssign of target:PhpExpr * value:PhpExpr
-//    | PhpIf of guard: PhpExpr * thenCase: PhpStatement list * elseCase: PhpStatement list
-//    | PhpThrow of PhpExpr
-//    | PhpTryCatch of body: PhpStatement list * catch: (string * PhpStatement list) option * finallizer: PhpStatement list
-//    | PhpWhileLoop of guard: PhpExpr * body: PhpStatement list
-//    | PhpFor of ident: string * start: PhpExpr * limit: PhpExpr * isUp: bool * body: PhpStatement list
-//    | PhpDo of PhpExpr
+type ALBinaryOperator =
+    | Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Mod
+    | AND
+    | OR
+    | XOR
+    | LessThan
+    | LessThanOrEqual
+    | Equals
+    | GreaterThan
+    | GreaterThanOrEqual
+    | NotEquals
+    | MemberAccess //Exp.Exp
+    | Range // Exp..Exp
+    | Scope // Exp::Exp
 
-//and PhpCase =
-//    | IntCase of int
-//    | StringCase of string
-//    | DefaultCase
-//
-//and PhpTypeRef =
-//    | ExType of PhpIdentity
-//    | InType of PhpType
-//    | ArrayRef of PhpTypeRef
-//
-//and PhpFun =
-//    { Name: string
-//      Args: string list
-//      Matchings: PhpStatement list
-//      Body: PhpStatement list
-//      Static: bool
-//    }
-//and PhpConstructor =
-//    { Args: string list
-//      Body: PhpStatement list
-//    }
-//
-//and PhpType =
-//    { Namespace: string option
-//      Name: string
-//      Fields: PhpField list;
-//      Constructor: PhpConstructor option
-//      Methods: PhpFun list
-//      Abstract: bool
-//      BaseType: PhpType option
-//      Interfaces: PhpType list
-//      File: string
-//      OriginalFullName: string
-//    }
-//
-//
-//type PhpDecl =
-//    | PhpFun of PhpFun
-//    | PhpDeclValue of name:string * PhpExpr
-//    | PhpAction of PhpStatement list
-//    | PhpType of PhpType
-//
-//type PhpFile =
-//    { Filename: string
-//      Namespace: string option
-//      Require: (string option * string) list
-//      Uses: PhpType list
-//      Decls: (int * PhpDecl) list }
+type ALUnaryOperator =
+    | UnaryMinus // - Exp
+    | Not // NOT Exp
+    | Grouping //(Exp)
+
+type ALStatement =
+    | Block of ALStatement list
+    | Sequence of ALStatement * ALStatement
+    | Assignment of target: ALExpression * source: ALExpression
+    | Expression of exp: ALExpression
+    | IfStatement of guard: ALExpression * ``then``: ALStatement * ``else``: ALStatement option
+    // TODO : case, while, repeat, for, with(?), foreach
+    | ForLoop of
+        lambdaIdentifier: ALExpression *
+        assignment: ALExpression *
+        exp: ALExpression *
+        doStatement: ALStatement *
+        isUp: bool
+    | ForeachLoop of identifier: ALExpression * exp: ALExpression * doStatement: ALExpression
+    | WhileLoop of guard: ALExpression * doStatement: ALExpression
+    | Exit of value: ALExpression
+
+type FSALMappingExpr =
+    | Ignore
+    | StatementExpr of ALStatement
+    | DecisionExpr of index: int
+    | InvocationWithoutTarget of methodnameAndArgs: (string * ALExpression list)
+    | InvocationWithoutLastArg of targetMethodNameAndArgs: (ALExpression * string * ALExpression list)
+
+type ALExpression =
+    // these are just for mapping F# code
+    | FSALExpr of FSALMappingExpr
+    //
+    | Constant of obj
+    | Identifier of string
+    | UnaryExp of op: ALUnaryOperator * right: ALExpression
+    | Binary of left: ALExpression * op: ALBinaryOperator * right: ALExpression
+    | NaryExpression of expr: ALNaryExpression
+    | FSharpLambda of newVariable: ALVariable * ALExpression
 
 
+type ALNaryExpression =
+    | Invocation of target: ALExpression * args: ALExpression list
+    | ArrayReference of target: ALExpression * args: ALExpression list
+    | MembershipTest of target: ALExpression * args: ALExpression list
+
+type ALVariable =
+    { IsMutable: bool
+      Name: string
+      ALType: ALType }
+
+type ALSimpleType =
+    // | NamedSimpleType of typename:string
+    | Boolean
+    | Char
+    | Integer
+    | Decimal
+    | DateTime
+    | Text of length: int option
+    | Code of length: int option
+    | Option of values: string list
+    | List of listArg: ALSimpleType
+    | JsonToken
+    | JsonArray
+    | JsonObject
+
+type ALComplexType =
+    | ComplexType of typename: string
+    | Record of name: string
+    | Page of name: string
+    | Report of name: string
+    | Codeunit of name: string
+    | Query of name: string
+    | Variant
+
+type ALType =
+    | Simple of ALSimpleType
+    | Complex of ALComplexType
+
+type ALProcedure =
+    { IsLocal: bool
+      Identifier: string
+      Parameters: ALVariable list
+      LocalVariables: ALVariable list
+      Statements: ALStatement
+      ReturnType: ALType option
+     }
+
+type ALRecordField =
+    { Id: int
+      Identifier: string
+      ALType: ALType
+      Length: int option
+      Properties: (string * obj) list }
+
+type ALObject =
+    { ObjectId: int
+      ObjectType: string
+      Members: ALProcedure list
+      Fields: ALRecordField list }
+
+// todo: proper impl
 type ALDecl =
-    | ALMember of string
-    | ALObject of string
-    
+    | ALMemberDecl of ALProcedure
+    | ALObjectDecl of ALObject
 
-type ALFile = {
-      Filename: string
+type ALFile =
+    { Filename: string
       Namespace: string option
       Require: (string option * string) list
-//      Uses: PhpType list
+      // todo: uses
       Uses: string list
-//      Decls: (int * PhpDecl) list
-      Decls: (int * ALDecl) list
-}
+      //      Decls: (int * PhpDecl) list
+      Decls: (int * ALDecl) list }

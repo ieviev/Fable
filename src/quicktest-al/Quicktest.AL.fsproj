@@ -3,10 +3,11 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <RollForward>Major</RollForward>
+    <RootNamespace>Quicktest</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="QuickTest.fs" />
-    <Content Include="quicktest.fs.js" />
+    <Compile Include="Quicktest.AL.fs" />
+    <Content Include="QuickTest.fs.al" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Fable.Core\Fable.Core.fsproj" />

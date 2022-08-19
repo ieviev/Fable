@@ -547,7 +547,7 @@ module Output =
 
 
     let writeFile ctx (file: ALFile) =
-        writeln ctx "<?php"
+        writeln ctx "// AL START"
         file.Namespace |> Option.iter (fun ns ->
             write ctx "namespace "
             write ctx ns
@@ -589,9 +589,9 @@ module Output =
         for i,d in file.Decls do
             writeln ctx ( "#" + string i)
             // todo : writedecl
-            match d with
-            | ALMember s -> writeln ctx $"MEMBER {s}"  
-            | ALObject s -> writeln ctx $"OBJECT {s}"  
+            //match d with
+            //| ALMember s -> writeln ctx $"MEMBER {s}"  
+            //| ALObject s -> writeln ctx $"OBJECT {s}"  
 //            writeDecl ctx 
             writeln ctx ""
 

@@ -356,6 +356,7 @@ module AL =
             member _.Dispose() = stream.Dispose()
 
     let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPath: string) = async {
+       
         let t1 = 1
         let php =
             FSharp2Fable.Compiler.transformFile com

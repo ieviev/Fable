@@ -8,38 +8,33 @@ open System
 //    [<Emit "$0.__name__)">] abstract name: string
 //    [<Emit "$0$1...">] abstract Invoke: [<ParamArray>] args: obj[] -> obj
 //    [<Emit "$0">] abstract Instance: obj
-
   
 [<AttributeUsage(AttributeTargets.All,Inherited=true,AllowMultiple=false)>]
 type Name(str:string) = 
     inherit System.Attribute()
     member this.Name : string = str
 
-/// AL representations of types
-[<RequireQualifiedAccess>]
-module AL = 
+/// single-instance codeunit for modules
+[<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
+type Codeunit(id:int) =
+    inherit System.Attribute()
+    member this.ObjectId : int = id
     
-    /// single-instance codeunit for modules
-    [<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
-    type Codeunit(id:int) =
-        inherit System.Attribute()
-        member this.ObjectId : int = id
-        
-    /// table for f# record types
-    [<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]     
-    type Table(id:int) =
-        inherit System.Attribute()
-        member this.ObjectId : int = id
+/// table for f# record types
+[<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]     
+type Table(id:int) =
+    inherit System.Attribute()
+    member this.ObjectId : int = id
+
+/// compile to JsonToken accesses in AL
+[<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
+type Json() = 
+    inherit System.Attribute()
     
-    /// compile to JsonToken accesses in AL
-    [<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
-    type Json() = 
-        inherit System.Attribute()
-        
-    /// compile to Option values in AL
-    [<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
-    type Option() = 
-        inherit System.Attribute()
+/// compile to Option values in AL
+[<AttributeUsage(AttributeTargets.Struct|||AttributeTargets.Class,Inherited=true,AllowMultiple=false)>]
+type Option() = 
+    inherit System.Attribute()
 
 
 [<AbstractClass>]

@@ -1,4 +1,4 @@
-namespace QuickTest
+namespace Quicktest
 
 // Run `dotnet fsi build.fsx quicktest` and then add tests to this file,
 // when you save they will be run automatically with latest changes in compiler.
@@ -79,9 +79,11 @@ namespace QuickTest
 // testCase "Addition works" <| fun () ->
 //     2 + 2 |> equal 4
 
+
 open Fable.Core
 
-[<AL.AL.Codeunit(50001)>]
-type Codeunit1() =
-    member _.test1() = 1
+[<AL.Codeunit(50001)>]
+module Codeunit1 =
+    let test1() = 1
+    let test2() = 2
 

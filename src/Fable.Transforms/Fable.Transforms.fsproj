@@ -39,7 +39,9 @@
     <Compile Include="Rust/RustPrinter.fs" />
     <Compile Include="Rust/Fable2Rust.fs" />
     <Compile Include="State.fs" />
+    <Compile Include="AL\ALHelpers.fs" />
     <Compile Include="AL\AL.fs" />
+    <Compile Include="AL\FSAL.fs" />
     <Compile Include="AL\Fable2AL.fs" />
     <Compile Include="AL\ALPrinter.fs" />
   </ItemGroup>
