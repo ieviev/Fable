@@ -1,6 +1,7 @@
 namespace rec Fable.AST.AL
 
 open Fable.AST.AL
+open Fable.AST.Fable
 
 
 type ALBinaryOperator =
@@ -27,41 +28,34 @@ type ALUnaryOperator =
     | Not // NOT Exp
     | Grouping //(Exp)
 
-type ALStatement =
-    | Block of ALStatement list
-    | Sequence of ALStatement * ALStatement
+type ALExpression =
+    // these are just for mapping F# code
+    | FSALIgnore
+    | FSALDecisionExpr of index: int
+    | FSALInvocationWithoutTarget of methodnameAndArgs: (string * ALExpression list)
+    | FSALInvocationWithoutLastArg of targetMethodNameAndArgs: (ALExpression * string * ALExpression list)
+    | FSALLambda of newVariable: ALVariable * ALExpression
+    // expressions
+    | Constant of obj
+    | Identifier of Ident
+    | UnaryExp of op: ALUnaryOperator * right: ALExpression
+    | Binary of  op: ALBinaryOperator * left: ALExpression * right: ALExpression
+    | NaryExpression of expr: ALNaryExpression
+    // actually statements
+    | Block of ALExpression list
+    //| Sequence of ALExpression * ALExpression unnecessarily complex to debug
     | Assignment of target: ALExpression * source: ALExpression
     | Expression of exp: ALExpression
-    | IfStatement of guard: ALExpression * ``then``: ALStatement * ``else``: ALStatement option
-    // TODO : case, while, repeat, for, with(?), foreach
+    | IfStatement of guard: ALExpression * ``then``: ALExpression * ``else``: ALExpression option
     | ForLoop of
         lambdaIdentifier: ALExpression *
         assignment: ALExpression *
         exp: ALExpression *
-        doStatement: ALStatement *
+        doStatement: ALExpression *
         isUp: bool
     | ForeachLoop of identifier: ALExpression * exp: ALExpression * doStatement: ALExpression
     | WhileLoop of guard: ALExpression * doStatement: ALExpression
     | Exit of value: ALExpression
-
-type FSALMappingExpr =
-    | Ignore
-    | StatementExpr of ALStatement
-    | DecisionExpr of index: int
-    | InvocationWithoutTarget of methodnameAndArgs: (string * ALExpression list)
-    | InvocationWithoutLastArg of targetMethodNameAndArgs: (ALExpression * string * ALExpression list)
-
-type ALExpression =
-    // these are just for mapping F# code
-    | FSALExpr of FSALMappingExpr
-    //
-    | Constant of obj
-    | Identifier of string
-    | UnaryExp of op: ALUnaryOperator * right: ALExpression
-    | Binary of left: ALExpression * op: ALBinaryOperator * right: ALExpression
-    | NaryExpression of expr: ALNaryExpression
-    | FSharpLambda of newVariable: ALVariable * ALExpression
-
 
 type ALNaryExpression =
     | Invocation of target: ALExpression * args: ALExpression list
@@ -105,9 +99,9 @@ type ALProcedure =
     { IsLocal: bool
       Identifier: string
       Parameters: ALVariable list
-      LocalVariables: ALVariable list
-      Statements: ALStatement
-      ReturnType: ALType option
+      LocalVariables: Set<Ident>
+      Statements: ALExpression list
+      ReturnType: Fable.AST.Fable.Type // ALType option
      }
 
 type ALRecordField =
@@ -136,3 +130,6 @@ type ALFile =
       Uses: string list
       //      Decls: (int * PhpDecl) list
       Decls: (int * ALDecl) list }
+
+
+

@@ -30,7 +30,6 @@ namespace Quicktest
 //            if not <| String.IsNullOrEmpty(expected) then
 //                equal e.Message expected
 //            false
-//    // TODO better error messages
 //    equal false success
 
 // let testCase (msg: string) f: unit =
@@ -84,6 +83,11 @@ open Fable.Core
 
 [<AL.Codeunit(50001)>]
 module Codeunit1 =
-    let test1() = 1
-    let test2() = 2
+    let test1() =
+        let a = 4
+        let b = 2
+        let c = a + b
+        c
+    
+    
 

@@ -41,7 +41,8 @@
     <Compile Include="State.fs" />
     <Compile Include="AL\ALHelpers.fs" />
     <Compile Include="AL\AL.fs" />
-    <Compile Include="AL\FSAL.fs" />
+    <Compile Include="AL\ALExpr.fs" />
+    <Compile Include="AL\ALGen.fs" />
     <Compile Include="AL\Fable2AL.fs" />
     <Compile Include="AL\ALPrinter.fs" />
   </ItemGroup>

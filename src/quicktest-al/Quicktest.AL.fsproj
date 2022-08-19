@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <RollForward>Major</RollForward>
-    <RootNamespace>Quicktest</RootNamespace>
+    <RootNamespace>Quicktest.AL</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Quicktest.AL.fs" />
