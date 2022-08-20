@@ -195,7 +195,8 @@ let transformModuleDecl (com:IALCompiler) (moduleDecl:ModuleDecl) =
             let members = moduleDecl.Members
             let converted = [ for m in members do transformMemberDecl com m ]
             { ObjectId = 50001
-              ObjectType = "codeunit" // todo: add type
+              ObjectType = ALComplexType.Codeunit moduleDecl.Name
+              Properties = [ CodeunitProperty (SingleInstance true) ]
               Members = converted
               Fields = [] }
             |> ALDecl.ALObjectDecl
