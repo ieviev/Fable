@@ -4915,7 +4915,7 @@ module Util =
             moduleImports
             |> List.sortBy (fun import -> import.Selector)
             |> List.map (fun import ->
-                stdout.WriteLine $"importing####: {import.Path}"
+                // stdout.WriteLine $"importing####: {import.Path}"
                 // stdout.WriteLine $"importing####M: {import.ModulePath}"
                 // stdout.WriteLine $"importing####L: {import.LocalIdent}"
                 // stdout.WriteLine $"importing####SEL: {import.Selector}"
@@ -4982,7 +4982,7 @@ module Compiler =
                     addWarning com [] range msg
 
             member self.GetImportName(ctx, selector, path, r) =
-                stderr.WriteLine $"importing: %A{path}"
+                // stderr.WriteLine $"importing: %A{path}"
                 // if path.Contains "fable-library-rust" then
                 //     failwith "importing lib"
                 if selector = Fable.Naming.placeholder then
