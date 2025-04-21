@@ -19,19 +19,19 @@ module Naming =
     let allKeywords = HashSet(kw.RustKeywords)
     let rustPrelude = HashSet(kw.RustPrelude)
 
-    let rawIdent (ident: string) =
+    let rawIdent(ident: string) =
         if ident = "" || ident = "_" || ident.StartsWith("r#") then
             ident
         else
             "r#" + ident
 
-    let stripRaw (ident: string) =
+    let stripRaw(ident: string) =
         if ident.StartsWith("r#") then
             ident.Substring("r#".Length)
         else
             ident
 
-    let sanitizeIdent (ident: string) =
+    let sanitizeIdent(ident: string) =
         // Note: raw idents can be used to bypass the sanitization
         let ident = ident.Replace("$", "_").Replace("`", "_")
 
@@ -44,20 +44,20 @@ module Naming =
         else
             stripRaw ident // no need to keep it raw here
 
-    let splitNameParts (name: string) =
+    let splitNameParts(name: string) =
         name.Split([| "."; "::" |], System.StringSplitOptions.RemoveEmptyEntries)
         |> List.ofArray
 
 [<AutoOpen>]
 module Idents =
 
-    let mkIdent (symbol: Symbol) : Ident =
+    let mkIdent(symbol: Symbol) : Ident =
         let symbol = sanitizeIdent symbol
         Ident.from_str (symbol)
 
-    let mkUnsanitizedIdent (symbol: Symbol) : Ident = Ident.from_str (symbol)
+    let mkUnsanitizedIdent(symbol: Symbol) : Ident = Ident.from_str (symbol)
 
-    let mkPathIdents (symbols: Symbol seq) : Ident seq =
+    let mkPathIdents(symbols: Symbol seq) : Ident seq =
         symbols
         |> Seq.mapi (fun i name ->
             if i = 0 && topKeywords.Contains(name) then
@@ -69,7 +69,7 @@ module Idents =
 [<AutoOpen>]
 module Vectors =
 
-    let inline internal mkVec (items: _ seq) = Vec(items)
+    let inline internal mkVec(items: _ seq) = Vec(items)
 
 [<AutoOpen>]
 module TokenLiterals =
@@ -81,38 +81,28 @@ module TokenLiterals =
             suffix = suffix
         }
 
-    let mkBoolTokenLit symbol : token.Lit =
-        mkTokenLit token.LitKind.Bool symbol None
+    let mkBoolTokenLit symbol : token.Lit = mkTokenLit token.LitKind.Bool symbol None
 
-    let mkCharTokenLit symbol : token.Lit =
-        mkTokenLit token.LitKind.Char symbol None
+    let mkCharTokenLit symbol : token.Lit = mkTokenLit token.LitKind.Char symbol None
 
     let mkIntTokenLit symbol suffix : token.Lit =
         mkTokenLit token.LitKind.Integer symbol suffix
 
-    let mkFloatTokenLit symbol suffix : token.Lit =
-        mkTokenLit token.LitKind.Float symbol suffix
+    let mkFloatTokenLit symbol suffix : token.Lit = mkTokenLit token.LitKind.Float symbol suffix
 
-    let mkStrTokenLit symbol : token.Lit =
-        mkTokenLit token.LitKind.Str symbol None
+    let mkStrTokenLit symbol : token.Lit = mkTokenLit token.LitKind.Str symbol None
 
     let mkRawStrTokenLit raw symbol : token.Lit =
         mkTokenLit (token.LitKind.StrRaw raw) symbol None
 
-    let mkErrTokenLit symbol : token.Lit =
-        mkTokenLit token.LitKind.Err symbol None
+    let mkErrTokenLit symbol : token.Lit = mkTokenLit token.LitKind.Err symbol None
 
 [<AutoOpen>]
 module Tokens =
 
-    let mkToken kind : token.Token =
-        {
-            kind = kind
-            span = DUMMY_SP
-        }
+    let mkToken kind : token.Token = { kind = kind; span = DUMMY_SP }
 
-    let mkLiteralToken kind : token.Token =
-        kind |> token.TokenKind.Literal |> mkToken
+    let mkLiteralToken kind : token.Token = kind |> token.TokenKind.Literal |> mkToken
 
     let mkInterpolatedToken kind : token.Token =
         kind |> token.TokenKind.Interpolated |> mkToken
@@ -128,8 +118,7 @@ module Tokens =
 
     let mkCharToken symbol : token.Token = mkCharTokenLit symbol |> mkLiteralToken
 
-    let mkIntToken symbol : token.Token =
-        mkIntTokenLit symbol None |> mkLiteralToken
+    let mkIntToken symbol : token.Token = mkIntTokenLit symbol None |> mkLiteralToken
 
     let mkFloatToken symbol : token.Token =
         mkFloatTokenLit symbol None |> mkLiteralToken
@@ -156,8 +145,7 @@ module Tokens =
 [<AutoOpen>]
 module TokenTrees =
 
-    let mkTokenTree kind : token.TokenTree =
-        kind |> mkToken |> token.TokenTree.Token
+    let mkTokenTree kind : token.TokenTree = kind |> mkToken |> token.TokenTree.Token
 
     let mkIdentTokenTree symbol : token.TokenTree =
         symbol |> mkIdentToken |> token.TokenTree.Token
@@ -189,112 +177,112 @@ module TokenTrees =
 [<AutoOpen>]
 module Literals =
 
-    let mkBoolLit (value: bool) : Lit =
+    let mkBoolLit(value: bool) : Lit =
         {
             token = mkBoolTokenLit ((string value).ToLowerInvariant())
             kind = LitKind.Bool(value)
             span = DUMMY_SP
         }
 
-    let mkCharLit (value: char) : Lit =
+    let mkCharLit(value: char) : Lit =
         {
             token = mkCharTokenLit ((string value).escape_debug ())
             kind = LitKind.Char(value)
             span = DUMMY_SP
         }
 
-    let mkIntLit (value: Symbol) : Lit =
+    let mkIntLit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value None
             kind = LitKind.Int(value, LitIntType.Unsuffixed)
             span = DUMMY_SP
         }
 
-    let mkIsizeLit (value: Symbol) : Lit =
+    let mkIsizeLit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_isize")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.Isize))
             span = DUMMY_SP
         }
 
-    let mkInt8Lit (value: Symbol) : Lit =
+    let mkInt8Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_i8")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.I8))
             span = DUMMY_SP
         }
 
-    let mkInt16Lit (value: Symbol) : Lit =
+    let mkInt16Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_i16")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.I16))
             span = DUMMY_SP
         }
 
-    let mkInt32Lit (value: Symbol) : Lit =
+    let mkInt32Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_i32")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.I32))
             span = DUMMY_SP
         }
 
-    let mkInt64Lit (value: Symbol) : Lit =
+    let mkInt64Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_i64")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.I64))
             span = DUMMY_SP
         }
 
-    let mkInt128Lit (value: Symbol) : Lit =
+    let mkInt128Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_i128")
             kind = LitKind.Int(value, LitIntType.Signed(IntTy.I128))
             span = DUMMY_SP
         }
 
-    let mkUsizeLit (value: Symbol) : Lit =
+    let mkUsizeLit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_usize")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.Usize))
             span = DUMMY_SP
         }
 
-    let mkUInt8Lit (value: Symbol) : Lit =
+    let mkUInt8Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_u8")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.U8))
             span = DUMMY_SP
         }
 
-    let mkUInt16Lit (value: Symbol) : Lit =
+    let mkUInt16Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_u16")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.U16))
             span = DUMMY_SP
         }
 
-    let mkUInt32Lit (value: Symbol) : Lit =
+    let mkUInt32Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_u32")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.U32))
             span = DUMMY_SP
         }
 
-    let mkUInt64Lit (value: Symbol) : Lit =
+    let mkUInt64Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_u64")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.U64))
             span = DUMMY_SP
         }
 
-    let mkUInt128Lit (value: Symbol) : Lit =
+    let mkUInt128Lit(value: Symbol) : Lit =
         {
             token = mkIntTokenLit value (Some "_u128")
             kind = LitKind.Int(value, LitIntType.Unsigned(UintTy.U128))
             span = DUMMY_SP
         }
 
-    let mkFloatLit (value: Symbol) : Lit =
+    let mkFloatLit(value: Symbol) : Lit =
         let strValueWithDot =
             if value.Contains(".") || value.Contains("e") || value.Contains("E") then
                 value
@@ -307,7 +295,7 @@ module Literals =
             span = DUMMY_SP
         }
 
-    let mkFloat32Lit (value: Symbol) : Lit =
+    let mkFloat32Lit(value: Symbol) : Lit =
         let strValueWithDot =
             if value.Contains(".") || value.Contains("e") || value.Contains("E") then
                 value
@@ -320,7 +308,7 @@ module Literals =
             span = DUMMY_SP
         }
 
-    let mkFloat64Lit (value: Symbol) : Lit =
+    let mkFloat64Lit(value: Symbol) : Lit =
         let strValueWithDot =
             if value.Contains(".") || value.Contains("e") || value.Contains("E") then
                 value
@@ -333,7 +321,7 @@ module Literals =
             span = DUMMY_SP
         }
 
-    let mkStrLit (value: Symbol) : Lit =
+    let mkStrLit(value: Symbol) : Lit =
         {
             token = mkStrTokenLit (value.escape_debug ())
             kind = LitKind.Str(value, StrStyle.Cooked)
@@ -347,7 +335,7 @@ module Literals =
             span = DUMMY_SP
         }
 
-    let mkErrLit (value: Symbol) : Lit =
+    let mkErrLit(value: Symbol) : Lit =
         {
             token = mkErrTokenLit value
             kind = LitKind.Err(value)
@@ -395,7 +383,8 @@ module Paths =
 
         idents |> Seq.mapi (fun i ident -> mkPathSegment ident (args i)) |> mkPath
 
-    let mkGenericPath (names: Symbol seq) (genArgs: GenericArgs option) : Path = mkGenericOffsetPath names genArgs 0
+    let mkGenericPath (names: Symbol seq) (genArgs: GenericArgs option) : Path =
+        mkGenericOffsetPath names genArgs 0
 
 [<AutoOpen>]
 module Patterns =
@@ -435,8 +424,7 @@ module Patterns =
     let mkTupleStructPat (path: Path) (fields: Pat seq) : Pat =
         PatKind.TupleStruct(path, mkVec fields) |> mkPat
 
-    let mkRefPat pat : Pat =
-        PatKind.Ref(pat, Mutability.Not) |> mkPat
+    let mkRefPat pat : Pat = PatKind.Ref(pat, Mutability.Not) |> mkPat
 
 [<AutoOpen>]
 module Visibilities =
@@ -458,11 +446,7 @@ module Visibilities =
 [<AutoOpen>]
 module AnonConsts =
 
-    let mkAnonConst value =
-        {
-            id = DUMMY_NODE_ID
-            value = value
-        }
+    let mkAnonConst value = { id = DUMMY_NODE_ID; value = value }
 
 [<AutoOpen>]
 module BinOps =
@@ -504,7 +488,7 @@ module Statements =
 [<AutoOpen>]
 module Blocks =
 
-    let mkBlock (stmts: Stmt seq) : Block =
+    let mkBlock(stmts: Stmt seq) : Block =
         {
             stmts = mkVec stmts
             id = DUMMY_NODE_ID
@@ -513,14 +497,14 @@ module Blocks =
             tokens = None
         }
 
-    let mkBodyBlock (expr: Expr) : Block = [ expr |> mkExprStmt ] |> mkBlock
+    let mkBodyBlock(expr: Expr) : Block = [ expr |> mkExprStmt ] |> mkBlock
 
-    let mkExprBlock (expr: Expr) : Block =
+    let mkExprBlock(expr: Expr) : Block =
         match expr.kind with
         | ExprKind.Block(block, None) -> block
         | _ -> [ expr |> mkExprStmt ] |> mkBlock
 
-    let mkSemiBlock (expr: Expr) : Block =
+    let mkSemiBlock(expr: Expr) : Block =
         match expr.kind with
         | ExprKind.Block(block, None) -> block
         | _ -> [ expr |> mkSemiStmt ] |> mkBlock
@@ -542,13 +526,14 @@ module Arms =
 [<AutoOpen>]
 module MacroArgs =
 
-    let DUMMY_DELIMSPAN: token.DelimSpan =
-        {
-            open_ = DUMMY_SP
-            close = DUMMY_SP
-        }
+    let DUMMY_DELIMSPAN: token.DelimSpan = { open_ = DUMMY_SP; close = DUMMY_SP }
 
-    let mkDelimitedMacArgs (delim: MacDelimiter) (kind: token.TokenKind) (tokens: token.Token seq) : MacArgs =
+    let mkDelimitedMacArgs
+        (delim: MacDelimiter)
+        (kind: token.TokenKind)
+        (tokens: token.Token seq)
+        : MacArgs
+        =
         let count = tokens |> Seq.length
 
         let args: token.TokenStream =
@@ -634,11 +619,11 @@ module Attrs =
         let kind = mkAttrKind name args
         mkAttribute kind AttrStyle.Outer
 
-    let mkLineCommentAttr (comment: Symbol) : Attribute =
+    let mkLineCommentAttr(comment: Symbol) : Attribute =
         let kind = AttrKind.DocComment(token.CommentKind.Line, comment)
         mkAttribute kind AttrStyle.Outer
 
-    let mkBlockCommentAttr (comment: Symbol) : Attribute =
+    let mkBlockCommentAttr(comment: Symbol) : Attribute =
         let kind = AttrKind.DocComment(token.CommentKind.Block, comment)
         mkAttribute kind AttrStyle.Outer
 
@@ -743,8 +728,7 @@ module Exprs =
     let mkQualifiedPathExpr (qualified: Option<QSelf>) path : Expr =
         ExprKind.Path(qualified, path) |> mkExpr
 
-    let mkGenericPathExpr names genArgs : Expr =
-        mkGenericPath names genArgs |> mkPathExpr
+    let mkGenericPathExpr names genArgs : Expr = mkGenericPath names genArgs |> mkPathExpr
 
     let mkStructExpr path fields : Expr =
         {
@@ -755,12 +739,11 @@ module Exprs =
         |> ExprKind.Struct
         |> mkExpr
 
-    let mkArrayExpr (elements: Expr seq) : Expr =
-        ExprKind.Array(mkVec elements) |> mkExpr
+    let mkArrayExpr(elements: Expr seq) : Expr = ExprKind.Array(mkVec elements) |> mkExpr
 
-    let mkTupleExpr (elements: Expr seq) : Expr = ExprKind.Tup(mkVec elements) |> mkExpr
+    let mkTupleExpr(elements: Expr seq) : Expr = ExprKind.Tup(mkVec elements) |> mkExpr
 
-    let mkUnitExpr () : Expr = mkTupleExpr []
+    let mkUnitExpr() : Expr = mkTupleExpr []
 
     let mkCastExpr ty expr : Expr = ExprKind.Cast(expr, ty) |> mkExpr
 
@@ -772,28 +755,25 @@ module Exprs =
 
     let mkNegExpr expr : Expr = mkUnaryExpr UnOp.Neg expr
 
-    let mkBinaryExpr op left right : Expr =
-        ExprKind.Binary(op, left, right) |> mkExpr
+    let mkBinaryExpr op left right : Expr = ExprKind.Binary(op, left, right) |> mkExpr
 
-    let mkAssignOpExpr op left right : Expr =
-        ExprKind.AssignOp(op, left, right) |> mkExpr
+    let mkAssignOpExpr op left right : Expr = ExprKind.AssignOp(op, left, right) |> mkExpr
 
     let mkAssignExpr left right : Expr =
         ExprKind.Assign(left, right, DUMMY_SP) |> mkExpr
 
     let mkBlockExpr block : Expr = ExprKind.Block(block, None) |> mkExpr
 
-    let mkStmtBlockExpr (statements: Stmt seq) : Expr =
+    let mkStmtBlockExpr(statements: Stmt seq) : Expr =
         ExprKind.Block(mkBlock statements, None) |> mkExpr
 
     let mkLabelBlockExpr name (statements: Stmt seq) : Expr =
         ExprKind.Block(mkBlock statements, Some(mkLabel name)) |> mkExpr
 
-    let mkUnsafeBlockExpr (expr: Expr) : Expr =
+    let mkUnsafeBlockExpr(expr: Expr) : Expr =
         let block = mkExprBlock expr
 
-        let unsafeBlock =
-            { block with rules = BlockCheckMode.Unsafe(UnsafeSource.UserProvided) }
+        let unsafeBlock = { block with rules = BlockCheckMode.Unsafe(UnsafeSource.UserProvided) }
 
         unsafeBlock |> mkBlockExpr
 
@@ -846,8 +826,7 @@ module Exprs =
         ExprKind.Closure(captureBy, Asyncness.No, Movability.Movable, decl, body, DUMMY_SP)
         |> mkExpr
 
-    let mkCallExpr (callee: Expr) args : Expr =
-        ExprKind.Call(callee, mkVec args) |> mkExpr
+    let mkCallExpr (callee: Expr) args : Expr = ExprKind.Call(callee, mkVec args) |> mkExpr
 
     let mkMethodCallExpr (name: Symbol) genArgs callee args : Expr =
         let ident = mkIdent name
@@ -863,19 +842,17 @@ module Exprs =
         | ExprKind.MethodCall(seg, args2, _), [] when seg = segment && args2.Count = 1 -> callee
         | _ -> mkMethodCallExpr name genArgs callee args
 
-    let mkMacCallExpr (mac: MacCall) : Expr = ExprKind.MacCall mac |> mkExpr
+    let mkMacCallExpr(mac: MacCall) : Expr = ExprKind.MacCall mac |> mkExpr
 
     let mkMacroExpr (name: string) exprs : Expr =
         let tokens = exprs |> Seq.map mkExprToken
         mkParensCommaDelimitedMacCall name tokens |> mkMacCallExpr
 
-    let mkMatchExpr expr (arms: Arm seq) : Expr =
-        ExprKind.Match(expr, mkVec arms) |> mkExpr
+    let mkMatchExpr expr (arms: Arm seq) : Expr = ExprKind.Match(expr, mkVec arms) |> mkExpr
 
     let mkLetExpr pat expr : Expr = ExprKind.Let(pat, expr) |> mkExpr
 
-    let mkFieldExpr expr name : Expr =
-        ExprKind.Field(expr, mkIdent name) |> mkExpr
+    let mkFieldExpr expr name : Expr = ExprKind.Field(expr, mkIdent name) |> mkExpr
 
     let mkIndexExpr expr index : Expr = ExprKind.Index(expr, index) |> mkExpr
 
@@ -889,8 +866,7 @@ module Exprs =
 
         ExprKind.EmitExpression(value, mkVec args) |> mkExpr
 
-    let TODO_EXPR name : Expr =
-        mkStrLit ("TODO_EXPR_" + name) |> mkLitExpr
+    let TODO_EXPR name : Expr = mkStrLit ("TODO_EXPR_" + name) |> mkLitExpr
 
 // //for debugging purposes - decorate any expr with some metadata
 // let BLOCK_COMMENT_SUFFIX comment expr : Expr =
@@ -904,9 +880,9 @@ module Stmts =
 
     let mkItemStmt item : Stmt = StmtKind.Item item |> mkStmt
 
-    let mkEmptyStmt () : Stmt = StmtKind.Empty |> mkStmt
+    let mkEmptyStmt() : Stmt = StmtKind.Empty |> mkStmt
 
-    let mkMacCallStmt (mac: MacCall) : Stmt =
+    let mkMacCallStmt(mac: MacCall) : Stmt =
         let macCallStmt: MacCallStmt =
             {
                 mac = mac
@@ -945,13 +921,9 @@ module Generic =
 
     let NO_GENERICS = mkGenerics []
 
-    let mkAngleBracketedArgs args : AngleBracketedArgs =
-        {
-            span = DUMMY_SP
-            args = mkVec args
-        }
+    let mkAngleBracketedArgs args : AngleBracketedArgs = { span = DUMMY_SP; args = mkVec args }
 
-    let mkGenericTypeArg (ty: Ty) : AngleBracketedArg =
+    let mkGenericTypeArg(ty: Ty) : AngleBracketedArg =
         let genericArg = GenericArg.Type(ty)
         AngleBracketedArg.Arg(genericArg)
 
@@ -967,14 +939,14 @@ module Generic =
 
         AngleBracketedArg.Constraint(tyConstraint)
 
-    let mkGenericArgs (args: AngleBracketedArg seq) : GenericArgs option =
+    let mkGenericArgs(args: AngleBracketedArg seq) : GenericArgs option =
         // TODO: Will this call make the sequence run twice?
         if Seq.isEmpty args then
             None
         else
             args |> mkAngleBracketedArgs |> GenericArgs.AngleBracketed |> Some
 
-    let mkTypesGenericArgs (tys: Ty seq) : GenericArgs option =
+    let mkTypesGenericArgs(tys: Ty seq) : GenericArgs option =
         let args = tys |> Seq.map mkGenericTypeArg
         mkGenericArgs args
 
@@ -1000,17 +972,10 @@ module Generic =
 [<AutoOpen>]
 module Bounds =
 
-    let mkTraitRef path : TraitRef =
-        {
-            path = path
-            ref_id = DUMMY_NODE_ID
-        }
+    let mkTraitRef path : TraitRef = { path = path; ref_id = DUMMY_NODE_ID }
 
     let mkLifetime name : Lifetime =
-        {
-            id = DUMMY_NODE_ID
-            ident = mkUnsanitizedIdent name
-        }
+        { id = DUMMY_NODE_ID; ident = mkUnsanitizedIdent name }
 
     let mkPolyTraitRef path : PolyTraitRef =
         {
@@ -1058,11 +1023,11 @@ module Types =
     let mkFnTy unsafety ext genParams fnDecl : Ty =
         TyKind.BareFn(mkBareFnTy unsafety ext genParams fnDecl) |> mkTy
 
-    let mkInferTy () : Ty = TyKind.Infer |> mkTy
+    let mkInferTy() : Ty = TyKind.Infer |> mkTy
 
-    let mkNeverTy () : Ty = TyKind.Never |> mkTy
+    let mkNeverTy() : Ty = TyKind.Never |> mkTy
 
-    let mkImplSelfTy () : Ty = TyKind.ImplicitSelf |> mkTy
+    let mkImplSelfTy() : Ty = TyKind.ImplicitSelf |> mkTy
 
     let mkTraitTy bounds : Ty =
         TyKind.TraitObject(mkVec bounds, TraitObjectSyntax.None) |> mkTy
@@ -1078,39 +1043,24 @@ module Types =
     let mkRefTy (lifetimeOpt: Symbol option) ty : Ty =
         let opt_lifetime = lifetimeOpt |> Option.map mkLifetime
 
-        TyKind.Rptr(
-            opt_lifetime,
-            {
-                ty = ty
-                mutbl = Mutability.Not
-            }
-        )
-        |> mkTy
+        TyKind.Rptr(opt_lifetime, { ty = ty; mutbl = Mutability.Not }) |> mkTy
 
     let mkMutRefTy (lifetimeOpt: Symbol option) ty : Ty =
         let opt_lifetime = lifetimeOpt |> Option.map mkLifetime
 
-        TyKind.Rptr(
-            opt_lifetime,
-            {
-                ty = ty
-                mutbl = Mutability.Mut
-            }
-        )
-        |> mkTy
+        TyKind.Rptr(opt_lifetime, { ty = ty; mutbl = Mutability.Mut }) |> mkTy
 
     let mkPathTy path : Ty = TyKind.Path(None, path) |> mkTy
 
     let mkGenericPathTy names genArgs : Ty = mkGenericPath names genArgs |> mkPathTy
 
-    let mkArrayTy ty (size: Expr) : Ty =
-        TyKind.Array(ty, mkAnonConst size) |> mkTy
+    let mkArrayTy ty (size: Expr) : Ty = TyKind.Array(ty, mkAnonConst size) |> mkTy
 
     let mkSliceTy ty : Ty = TyKind.Slice(ty) |> mkTy
 
     let mkTupleTy tys : Ty = TyKind.Tup(mkVec tys) |> mkTy
 
-    let mkUnitTy () : Ty = mkTupleTy []
+    let mkUnitTy() : Ty = mkTupleTy []
 
     let mkGenericTy path tys : Ty =
         mkTypesGenericArgs tys |> mkGenericPathTy path
@@ -1188,7 +1138,7 @@ module Funcs =
         else
             Unsafety.No
 
-    let mkExtern (extOpt: Symbol option) : Extern =
+    let mkExtern(extOpt: Symbol option) : Extern =
         match extOpt with
         | Some("") -> Extern.Implicit
         | Some(abi) -> Extern.Explicit(mkStrLitFrom abi None)
@@ -1216,12 +1166,15 @@ module Funcs =
         }
 
     let mkFnDecl (inputs: Param seq) (output: FnRetTy) : FnDecl =
-        {
-            inputs = mkVec inputs
-            output = output
-        }
+        { inputs = mkVec inputs; output = output }
 
-    let mkFnKind (header: FnHeader) (decl: FnDecl) (generics: Generics) (body: Block option) : FnKind =
+    let mkFnKind
+        (header: FnHeader)
+        (decl: FnDecl)
+        (generics: Generics)
+        (body: Block option)
+        : FnKind
+        =
         let fnDef = Defaultness.Final
         let fnSig = mkFnSig header decl
         (fnDef, fnSig, generics, body)
@@ -1371,15 +1324,13 @@ module Items =
     let mkSimpleUseItem attrs names (aliasOpt: Symbol option) : Item =
         let identOpt = aliasOpt |> Option.map mkIdent
 
-        UseTreeKind.Simple(identOpt, DUMMY_NODE_ID, DUMMY_NODE_ID)
-        |> mkUseItem attrs names
+        UseTreeKind.Simple(identOpt, DUMMY_NODE_ID, DUMMY_NODE_ID) |> mkUseItem attrs names
 
     let mkNestedUseItem attrs names useTrees : Item =
         let useTrees = useTrees |> Seq.map (fun x -> x, DUMMY_NODE_ID)
         UseTreeKind.Nested(mkVec useTrees) |> mkUseItem attrs names
 
-    let mkGlobUseItem attrs names : Item =
-        UseTreeKind.Glob |> mkUseItem attrs names
+    let mkGlobUseItem attrs names : Item = UseTreeKind.Glob |> mkUseItem attrs names
 
     let mkModItem attrs name items : Item =
         let ident = mkIdent name
@@ -1456,7 +1407,7 @@ module Items =
         let mac = mkParensCommaDelimitedMacCall name tokens
         mkMacCallItem attrs "" mac
 
-    let TODO_ITEM (name: string) : Item =
+    let TODO_ITEM(name: string) : Item =
         let attrs = []
         let name = "TODO_ITEM_" + name.Replace(".", "_")
         let items = []

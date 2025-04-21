@@ -454,8 +454,7 @@ module Types =
     let printfFormat = "Microsoft.FSharp.Core.PrintfFormat"
 
     [<Literal>]
-    let createEvent =
-        "Microsoft.FSharp.Core.CompilerServices.RuntimeHelpers.CreateEvent"
+    let createEvent = "Microsoft.FSharp.Core.CompilerServices.RuntimeHelpers.CreateEvent"
 
     [<Literal>]
     let measureProduct2 = "Microsoft.FSharp.Core.CompilerServices.MeasureProduct`2"
@@ -623,7 +622,13 @@ module Log =
             FromRange: SourceLocation option
         }
 
-    let private addLog (com: Compiler) (inlinePath: InlinePath list) (range: SourceLocation option) msg severity =
+    let private addLog
+        (com: Compiler)
+        (inlinePath: InlinePath list)
+        (range: SourceLocation option)
+        msg
+        severity
+        =
         let printInlineSource fromPath (p: InlinePath) =
             let path = Path.getRelativeFileOrDirPath false fromPath false p.FromFile
 
@@ -638,7 +643,8 @@ module Log =
                     inlinePath |> List.map (printInlineSource file) |> String.concat " < "
 
                 file, msg + " - Inline call from " + inlinePath
-            | [] -> range |> Option.bind (fun r -> r.File) |> Option.defaultValue com.CurrentFile, msg
+            | [] ->
+                range |> Option.bind (fun r -> r.File) |> Option.defaultValue com.CurrentFile, msg
 
         com.AddLog(msg, severity, ?range = range, fileName = actualFile)
 
@@ -673,11 +679,11 @@ module AST =
     open Fable.AST
     open Fable.AST.Fable
 
-    let inline (|ExprType|) (e: Expr) = e.Type
-    let inline (|ExprTypeAs|) (e: Expr) = e.Type, e
-    let inline (|IdentType|) (id: Ident) = id.Type
-    let inline (|EntFullName|) (e: Entity) = e.FullName
-    let inline (|EntRefFullName|) (e: EntityRef) = e.FullName
+    let inline (|ExprType|)(e: Expr) = e.Type
+    let inline (|ExprTypeAs|)(e: Expr) = e.Type, e
+    let inline (|IdentType|)(id: Ident) = id.Type
+    let inline (|EntFullName|)(e: Entity) = e.FullName
+    let inline (|EntRefFullName|)(e: EntityRef) = e.FullName
 
     let (|DeclaredTypeFullName|_|) =
         function
@@ -728,7 +734,8 @@ module AST =
 
             if checkArity then
                 match expr.Type with
-                | NestedLambdaType(argTypes, _) when List.sameLength args argTypes -> Some(args, body, name)
+                | NestedLambdaType(argTypes, _) when List.sameLength args argTypes ->
+                    Some(args, body, name)
                 | _ -> None
             else
                 Some(args, body, name)
@@ -759,9 +766,14 @@ module AST =
                 | Lambda(arg, body, name2), _ ->
                     let remainingArity = remainingArity |> Option.map (fun x -> x - 1)
 
-                    uncurryLambdaInner (Option.orElse name2 name) (arg :: accArgs) remainingArity body
+                    uncurryLambdaInner
+                        (Option.orElse name2 name)
+                        (arg :: accArgs)
+                        remainingArity
+                        body
                 // If there's no arity expectation we can return the flattened part
-                | _, None when List.isEmpty accArgs |> not -> Delegate(List.rev accArgs, expr, name, Tags.empty) |> Some
+                | _, None when List.isEmpty accArgs |> not ->
+                    Delegate(List.rev accArgs, expr, name, Tags.empty) |> Some
                 // We cannot flatten lambda to the expected arity
                 | _, _ -> None
 
@@ -825,7 +837,8 @@ module AST =
 
     let (|StringComparisonEnumValue|_|) e =
         match e with
-        | Expr.Value(kind = NumberConstant(info = NumberInfo.IsEnum({ FullName = "System.StringComparison" }))) ->
+        | Expr.Value(
+            kind = NumberConstant(info = NumberInfo.IsEnum({ FullName = "System.StringComparison" }))) ->
             Some()
         | _ -> None
 
@@ -965,7 +978,7 @@ module AST =
 
     let makeNullTyped t = Value(Null t, None)
 
-    let makeNull () = Value(Null Any, None)
+    let makeNull() = Value(Null Any, None)
 
     let makeNone t = Value(NewOption(None, t, false), None)
 
@@ -1008,20 +1021,20 @@ module AST =
         (argTypes, returnType)
         ||> List.foldBack (fun arg returnType -> LambdaType(arg, returnType))
 
-    let makeBoolConst (x: bool) = BoolConstant x |> makeValue None
-    let makeStrConst (x: string) = StringConstant x |> makeValue None
+    let makeBoolConst(x: bool) = BoolConstant x |> makeValue None
+    let makeStrConst(x: string) = StringConstant x |> makeValue None
 
-    let makeIntConst (x: int) =
+    let makeIntConst(x: int) =
         NumberConstant(NumberValue.Int32 x, NumberInfo.Empty) |> makeValue None
 
-    let makeFloatConst (x: float) =
+    let makeFloatConst(x: float) =
         NumberConstant(NumberValue.Float64 x, NumberInfo.Empty) |> makeValue None
 
     let makeRegexConst r (pattern: string) flags =
         let flags = RegexGlobal :: RegexUnicode :: flags // .NET regex are always global & unicode
         RegexConstant(pattern, flags) |> makeValue r
 
-    let makeConstFromObj (value: obj) =
+    let makeConstFromObj(value: obj) =
         match value with
         | :? bool as x -> BoolConstant x |> makeValue None
         | :? string as x -> StringConstant x |> makeValue None
@@ -1036,9 +1049,11 @@ module AST =
         | :? int64 as x -> NumberConstant(NumberValue.Int64 x, NumberInfo.Empty) |> makeValue None
         | :? uint64 as x -> NumberConstant(NumberValue.UInt64 x, NumberInfo.Empty) |> makeValue None
         // Float types
-        | :? float32 as x -> NumberConstant(NumberValue.Float32 x, NumberInfo.Empty) |> makeValue None
+        | :? float32 as x ->
+            NumberConstant(NumberValue.Float32 x, NumberInfo.Empty) |> makeValue None
         | :? float as x -> NumberConstant(NumberValue.Float64 x, NumberInfo.Empty) |> makeValue None
-        | :? decimal as x -> NumberConstant(NumberValue.Decimal x, NumberInfo.Empty) |> makeValue None
+        | :? decimal as x ->
+            NumberConstant(NumberValue.Decimal x, NumberInfo.Empty) |> makeValue None
         | _ ->
             FableError $"Cannot create expression for object {value} (%s{value.GetType().FullName})"
             |> raise
@@ -1071,8 +1086,7 @@ module AST =
             | Int128, _
             | UInt128, _
             | Float16, _ ->
-                FableError $"Unsupported Number Kind %A{kind} and value %A{x} combination"
-                |> raise
+                FableError $"Unsupported Number Kind %A{kind} and value %A{x} combination" |> raise
 
             | _ ->
                 FableError $"Unexpected Number Kind %A{kind} and value %A{value} combination"
@@ -1129,15 +1143,7 @@ module AST =
     let makeImportLibWithInfo (com: Compiler) t memberName (moduleName: string) info =
         let selector =
             match com.Options.Language with
-            | Rust ->
-                if
-                    moduleName = "System"
-                    || moduleName.StartsWith("System.", StringComparison.Ordinal)
-                    || moduleName.StartsWith("FSharp.", StringComparison.Ordinal)
-                then
-                    moduleName + "::" + memberName
-                else
-                    moduleName + "_::" + memberName
+            | Rust -> moduleName + "::" + memberName
             | _ -> memberName
 
         Import(
@@ -1262,7 +1268,7 @@ module AST =
             HasSpread: bool
         |}
 
-    let getParamsInfo (memberInfo: MemberFunctionOrValue) : ParamsInfo =
+    let getParamsInfo(memberInfo: MemberFunctionOrValue) : ParamsInfo =
         // ParamObject/NamedParams attribute is not compatible with arg spread
         if memberInfo.HasSpread then
             {|
@@ -1332,20 +1338,24 @@ module AST =
         | String, String
         | Regex, Regex -> true
         | Number(kind1, info1), Number(kind2, info2) -> kind1 = kind2 && info1 = info2
-        | Option(t1, isStruct1), Option(t2, isStruct2) -> isStruct1 = isStruct2 && typeEquals strict t1 t2
+        | Option(t1, isStruct1), Option(t2, isStruct2) ->
+            isStruct1 = isStruct2 && typeEquals strict t1 t2
         | Array(t1, kind1), Array(t2, kind2) -> kind1 = kind2 && typeEquals strict t1 t2
         | List t1, List t2 -> typeEquals strict t1 t2
         | Tuple(ts1, isStruct1), Tuple(ts2, isStruct2) ->
             isStruct1 = isStruct2 && listEquals (typeEquals strict) ts1 ts2
-        | LambdaType(a1, t1), LambdaType(a2, t2) -> typeEquals strict a1 a2 && typeEquals strict t1 t2
+        | LambdaType(a1, t1), LambdaType(a2, t2) ->
+            typeEquals strict a1 a2 && typeEquals strict t1 t2
         | DelegateType(as1, t1), DelegateType(as2, t2) ->
             listEquals (typeEquals strict) as1 as2 && typeEquals strict t1 t2
-        | DeclaredType(ent1, gen1), DeclaredType(ent2, gen2) -> ent1 = ent2 && listEquals (typeEquals strict) gen1 gen2
+        | DeclaredType(ent1, gen1), DeclaredType(ent2, gen2) ->
+            ent1 = ent2 && listEquals (typeEquals strict) gen1 gen2
         | GenericParam _, _
         | _, GenericParam _ when not strict -> true
         | GenericParam(name = name1), GenericParam(name = name2) -> name1 = name2
         // Field names must be already sorted
-        | AnonymousRecordType(fields1, gen1, isStruct1), AnonymousRecordType(fields2, gen2, isStruct2) ->
+        | AnonymousRecordType(fields1, gen1, isStruct1),
+          AnonymousRecordType(fields2, gen2, isStruct2) ->
             fields1.Length = fields2.Length
             && Array.zip fields1 fields2 |> Array.forall (fun (f1, f2) -> f1 = f2)
             && listEquals (typeEquals strict) gen1 gen2
@@ -1474,7 +1484,7 @@ module AST =
                 Types.list + "[" + gen + "]"
         | DeclaredType(ent, gen) -> getEntityFullName prettify ent gen
 
-    let addRanges (locs: SourceLocation option seq) =
+    let addRanges(locs: SourceLocation option seq) =
         let addTwo (r1: SourceLocation option) (r2: SourceLocation option) =
             match r1, r2 with
             | Some r1, None -> Some r1
@@ -1490,14 +1500,7 @@ module AST =
         | IdentExpr _ -> e
         | TypeCast(e, t) -> TypeCast(f e, t)
         | Import(info, t, r) ->
-            Import(
-                { info with
-                    Selector = info.Selector
-                    Path = info.Path
-                },
-                t,
-                r
-            )
+            Import({ info with Selector = info.Selector; Path = info.Path }, t, r)
         | Extended(kind, r) ->
             match kind with
             | Curry(e, arity) -> Extended(Curry(f e, arity), r)
@@ -1515,19 +1518,23 @@ module AST =
             | StringConstant _
             | NumberConstant _
             | RegexConstant _ -> e
-            | StringTemplate(tag, parts, exprs) -> StringTemplate(tag, parts, List.map f exprs) |> makeValue r
+            | StringTemplate(tag, parts, exprs) ->
+                StringTemplate(tag, parts, List.map f exprs) |> makeValue r
             | NewOption(e, t, isStruct) -> NewOption(Option.map f e, t, isStruct) |> makeValue r
             | NewTuple(exprs, isStruct) -> NewTuple(List.map f exprs, isStruct) |> makeValue r
-            | NewArray(ArrayValues exprs, t, i) -> NewArray(List.map f exprs |> ArrayValues, t, i) |> makeValue r
+            | NewArray(ArrayValues exprs, t, i) ->
+                NewArray(List.map f exprs |> ArrayValues, t, i) |> makeValue r
             | NewArray(ArrayFrom expr, t, i) -> NewArray(f expr |> ArrayFrom, t, i) |> makeValue r
             | NewArray(ArrayAlloc expr, t, i) -> NewArray(f expr |> ArrayAlloc, t, i) |> makeValue r
             | NewList(ht, t) ->
                 let ht = ht |> Option.map (fun (h, t) -> f h, f t)
                 NewList(ht, t) |> makeValue r
-            | NewRecord(exprs, ent, genArgs) -> NewRecord(List.map f exprs, ent, genArgs) |> makeValue r
+            | NewRecord(exprs, ent, genArgs) ->
+                NewRecord(List.map f exprs, ent, genArgs) |> makeValue r
             | NewAnonymousRecord(exprs, ent, genArgs, isStruct) ->
                 NewAnonymousRecord(List.map f exprs, ent, genArgs, isStruct) |> makeValue r
-            | NewUnion(exprs, uci, ent, genArgs) -> NewUnion(List.map f exprs, uci, ent, genArgs) |> makeValue r
+            | NewUnion(exprs, uci, ent, genArgs) ->
+                NewUnion(List.map f exprs, uci, ent, genArgs) |> makeValue r
         | Test(e, kind, r) -> Test(f e, kind, r)
         | Lambda(arg, body, name) -> Lambda(arg, f body, name)
         | Delegate(args, body, name, tags) -> Delegate(args, f body, name, tags)
@@ -1540,10 +1547,7 @@ module AST =
         | CurriedApply(callee, args, t, r) -> CurriedApply(f callee, List.map f args, t, r)
         | Call(callee, info, t, r) ->
             let info =
-                { info with
-                    ThisArg = Option.map f info.ThisArg
-                    Args = List.map f info.Args
-                }
+                { info with ThisArg = Option.map f info.ThisArg; Args = List.map f info.Args }
 
             Call(f callee, info, t, r)
         | Emit(info, t, r) ->
@@ -1587,7 +1591,8 @@ module AST =
         | DecisionTree(expr, targets) ->
             let targets = targets |> List.map (fun (idents, v) -> idents, f v)
             DecisionTree(f expr, targets)
-        | DecisionTreeSuccess(idx, boundValues, t) -> DecisionTreeSuccess(idx, List.map f boundValues, t)
+        | DecisionTreeSuccess(idx, boundValues, t) ->
+            DecisionTreeSuccess(idx, List.map f boundValues, t)
 
     let rec visitFromInsideOut f e = visit (visitFromInsideOut f) e |> f
 
@@ -1680,7 +1685,7 @@ module AST =
         | DecisionTreeSuccess(_, boundValues, _) -> boundValues
 
     let deepExists (f: Expr -> bool) expr =
-        let rec deepExistsInner (exprs: ResizeArray<Expr>) =
+        let rec deepExistsInner(exprs: ResizeArray<Expr>) =
             let mutable found = false
             let subExprs = FSharp.Collections.ResizeArray()
 
@@ -1720,7 +1725,8 @@ module AST =
     let extractGenericArgs (maybeGenericExpr: Expr) concreteType =
         let rec extractGenericArgs genArgs maybeGenericType concreteType =
             match maybeGenericType, concreteType with
-            | Fable.GenericParam(name = name1), Fable.GenericParam(name = name2) when name1 = name2 -> genArgs
+            | Fable.GenericParam(name = name1), Fable.GenericParam(name = name2) when name1 = name2 ->
+                genArgs
             | Fable.GenericParam(name = name), t -> Map.add name t genArgs
             | t1, t2 ->
                 match t1.Generics with
@@ -1735,7 +1741,7 @@ module AST =
 
         extractGenericArgs Map.empty maybeGenericExpr.Type concreteType
 
-    let rec resolveInlineType (genArgs: Map<string, Type>) =
+    let rec resolveInlineType(genArgs: Map<string, Type>) =
         function
         | GenericParam(name, isMeasure, _constraints) as t ->
             match Map.tryFind name genArgs with
@@ -1750,21 +1756,17 @@ module AST =
     let resolveInlineMemberRef genArgs =
         function
         | MemberRef(ent, info) ->
-            let argTypes =
-                Option.map (List.map (resolveInlineType genArgs)) info.NonCurriedArgTypes
+            let argTypes = Option.map (List.map (resolveInlineType genArgs)) info.NonCurriedArgTypes
 
             MemberRef(ent, { info with NonCurriedArgTypes = argTypes })
 
         | GeneratedMemberRef(gen) ->
-            let mapInfo (i: GeneratedMemberInfo) =
+            let mapInfo(i: GeneratedMemberInfo) =
                 let paramTypes = List.map (resolveInlineType genArgs) i.ParamTypes
 
                 let returnType = resolveInlineType genArgs i.ReturnType
 
-                { i with
-                    ParamTypes = paramTypes
-                    ReturnType = returnType
-                }
+                { i with ParamTypes = paramTypes; ReturnType = returnType }
 
             match gen with
             | GeneratedFunction i -> GeneratedFunction(mapInfo i)
@@ -1801,7 +1803,8 @@ module AST =
                         Value(BaseValue(i, resolveInlineType genArgs t), r)
                     | TypeInfo(t, tags) -> Value(TypeInfo(resolveInlineType genArgs t, tags), r)
                     | Null t -> Value(Null(resolveInlineType genArgs t), r)
-                    | NewOption(v, t, isStruct) -> Value(NewOption(v, resolveInlineType genArgs t, isStruct), r)
+                    | NewOption(v, t, isStruct) ->
+                        Value(NewOption(v, resolveInlineType genArgs t, isStruct), r)
                     | NewArray(k1, t, k2) -> Value(NewArray(k1, resolveInlineType genArgs t, k2), r)
                     | NewList(v, t) -> Value(NewList(v, resolveInlineType genArgs t), r)
                     | NewRecord(vs, ent, gen) ->
@@ -1821,7 +1824,8 @@ module AST =
                     let arg = resolveInlineIdent genArgs arg
                     Lambda(arg, b, n)
 
-                | Delegate(args, b, n, t) -> Delegate(List.map (resolveInlineIdent genArgs) args, b, n, t)
+                | Delegate(args, b, n, t) ->
+                    Delegate(List.map (resolveInlineIdent genArgs) args, b, n, t)
 
                 | ObjectExpr(members, typ, baseCall) ->
                     let members =
@@ -1845,14 +1849,17 @@ module AST =
                     let info = resolveInlineCallInfo genArgs info
                     Call(callee, info, resolveInlineType genArgs t, r)
 
-                | CurriedApply(callee, args, typ, r) -> CurriedApply(callee, args, resolveInlineType genArgs typ, r)
+                | CurriedApply(callee, args, typ, r) ->
+                    CurriedApply(callee, args, resolveInlineType genArgs typ, r)
 
-                | Operation(kind, tags, typ, r) -> Operation(kind, tags, resolveInlineType genArgs typ, r)
+                | Operation(kind, tags, typ, r) ->
+                    Operation(kind, tags, resolveInlineType genArgs typ, r)
 
                 | Import(info, t, r) ->
                     let info =
                         match info.Kind with
-                        | MemberImport m -> { info with Kind = resolveInlineMemberRef genArgs m |> MemberImport }
+                        | MemberImport m ->
+                            { info with Kind = resolveInlineMemberRef genArgs m |> MemberImport }
                         | UserImport _
                         | LibraryImport _
                         | ClassImport _ -> info
@@ -1867,7 +1874,9 @@ module AST =
                 | DecisionTree(expr, targets) ->
                     let targets =
                         targets
-                        |> List.map (fun (bindings, body) -> List.map (resolveInlineIdent genArgs) bindings, body)
+                        |> List.map (fun (bindings, body) ->
+                            List.map (resolveInlineIdent genArgs) bindings, body
+                        )
 
                     DecisionTree(expr, targets)
 
@@ -1879,10 +1888,14 @@ module AST =
                     let kind =
                         match kind with
                         | FieldGet i ->
-                            { i with FieldType = Option.map (resolveInlineType genArgs) i.FieldType }
+                            { i with
+                                FieldType = Option.map (resolveInlineType genArgs) i.FieldType
+                            }
                             |> FieldGet
                         | UnionField i ->
-                            { i with GenericArgs = List.map (resolveInlineType genArgs) i.GenericArgs }
+                            { i with
+                                GenericArgs = List.map (resolveInlineType genArgs) i.GenericArgs
+                            }
                             |> UnionField
                         | TupleIndex _
                         | ExprGet _
@@ -1896,7 +1909,8 @@ module AST =
                 | Let(i, v, b) -> Let(resolveInlineIdent genArgs i, v, b)
 
                 | LetRec(bindings, b) ->
-                    let bindings = bindings |> List.map (fun (i, v) -> resolveInlineIdent genArgs i, v)
+                    let bindings =
+                        bindings |> List.map (fun (i, v) -> resolveInlineIdent genArgs i, v)
 
                     LetRec(bindings, b)
 

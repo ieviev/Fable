@@ -14,7 +14,6 @@
     <Compile Include="FableLibrary/Dart.fs" />
     <Compile Include="FableLibrary/TypeScript.fs" />
     <Compile Include="FableLibrary/JavaScript.fs" />
-    <Compile Include="FableLibrary/Rust.fs" />
     <Compile Include="WorkerJs.fs" />
     <Compile Include="Standalone.fs" />
     <Compile Include="CompilerJs.fs" />
