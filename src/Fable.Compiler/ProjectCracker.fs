@@ -77,10 +77,13 @@ type CacheInfo =
         | Some other -> this.GetTimestamp() > other.GetTimestamp()
 
 /// Combine the `baseDir` with `fable_modules`
-let getFableModulesFromDir (baseDir: string) : string =
+let getFableModulesFromDir(baseDir: string) : string =
     IO.Path.Combine(baseDir, Naming.fableModules) |> Path.normalizePath
 
-let getFableModulesFromProject (projDir: string, outDir: string option, noCache: bool, evaluateOnly: bool) : string =
+let getFableModulesFromProject
+    (projDir: string, outDir: string option, noCache: bool, evaluateOnly: bool)
+    : string
+    =
     let fableModulesDir =
         outDir |> Option.defaultWith (fun () -> projDir) |> getFableModulesFromDir
 
@@ -243,14 +246,14 @@ let tryGetFablePackage (opts: CrackerOptions) (dllPath: string) =
     let tryFirstWithName localName (els: XElement seq) =
         els |> Seq.tryFind (fun x -> x.Name.LocalName = localName)
 
-    let elements (el: XElement) = el.Elements()
+    let elements(el: XElement) = el.Elements()
     let attr name (el: XElement) = el.Attribute(XName.Get name).Value
 
     let child localName (el: XElement) =
         let child = el.Elements() |> firstWithName localName
         child.Value
 
-    let firstGroupOrAllDependencies (dependencies: XElement seq) =
+    let firstGroupOrAllDependencies(dependencies: XElement seq) =
         match tryFirstWithName "group" dependencies with
         | Some firstGroup -> elements firstGroup
         | None -> dependencies
@@ -297,10 +300,10 @@ let tryGetFablePackage (opts: CrackerOptions) (dllPath: string) =
             |> Some
         | _ -> None
 
-let sortFablePackages (pkgs: FablePackage list) =
+let sortFablePackages(pkgs: FablePackage list) =
     ([], pkgs)
     ||> List.fold (fun acc pkg ->
-        let isPkgDependency (dependency: FablePackage) =
+        let isPkgDependency(dependency: FablePackage) =
             pkg.Dependencies
             |> Set.exists (fun dep -> dep.ToLowerInvariant() = dependency.Id.ToLowerInvariant())
 
@@ -314,7 +317,9 @@ let sortFablePackages (pkgs: FablePackage list) =
                         if i > 0 then
                             let dependent, nonDependent =
                                 List.rev before
-                                |> List.partition (fun (x: FablePackage) -> x.Dependencies.Contains(pkg.Id))
+                                |> List.partition (fun (x: FablePackage) ->
+                                    x.Dependencies.Contains(pkg.Id)
+                                )
 
                             nonDependent @ justBefore :: x :: dependent @ after
                         else
@@ -326,11 +331,11 @@ let sortFablePackages (pkgs: FablePackage list) =
             insertAfter pkg targetIdx 0 [] acc
     )
 
-let private getDllName (dllFullPath: string) =
+let private getDllName(dllFullPath: string) =
     let i = dllFullPath.LastIndexOf('/')
     dllFullPath[(i + 1) .. (dllFullPath.Length - 5)] // -5 removes the .dll extension
 
-let getBasicCompilerArgs () =
+let getBasicCompilerArgs() =
     [|
         // "--debug"
         // "--debug:portable"
@@ -357,7 +362,7 @@ let getSourcesFromFablePkg (opts: CrackerOptions) (projFile: string) =
     let withName s (xs: XElement seq) =
         xs |> Seq.filter (fun x -> x.Name.LocalName = s)
 
-    let checkCondition (el: XElement) =
+    let checkCondition(el: XElement) =
         match el.Attribute(XName.Get "Condition") with
         | null -> true
         | attr ->
@@ -368,7 +373,9 @@ let getSourcesFromFablePkg (opts: CrackerOptions) (projFile: string) =
 
                 let isDefined =
                     opts.FableOptions.Define
-                    |> List.exists (fun d -> String.Equals(d, prop, StringComparison.InvariantCultureIgnoreCase))
+                    |> List.exists (fun d ->
+                        String.Equals(d, prop, StringComparison.InvariantCultureIgnoreCase)
+                    )
                 // printfn $"CONDITION: {prop} ({isDefined}) {op} {bval} ({isTrue})"
                 isTrue = isDefined
             | _ -> false
@@ -382,7 +389,9 @@ let getSourcesFromFablePkg (opts: CrackerOptions) (projFile: string) =
     Log.showFemtoMsg (fun () ->
         xmlDoc.Root.Elements()
         |> withName "PropertyGroup"
-        |> Seq.exists (fun propGroup -> propGroup.Elements() |> withName "NpmDependencies" |> Seq.isEmpty |> not)
+        |> Seq.exists (fun propGroup ->
+            propGroup.Elements() |> withName "NpmDependencies" |> Seq.isEmpty |> not
+        )
     )
 
     xmlDoc.Root.Elements()
@@ -441,8 +450,7 @@ let private extractUsefulOptionsAndSources
         elif line.StartsWith("--define:", StringComparison.Ordinal) then
             // When parsing the project as .csproj there will be multiple defines in the same line,
             // but the F# compiler seems to accept only one per line
-            let defines =
-                line.Substring(9).Split(';') |> Array.mapToList (fun d -> "--define:" + d)
+            let defines = line.Substring(9).Split(';') |> Array.mapToList (fun d -> "--define:" + d)
 
             accSources, defines @ accOptions
         else
@@ -456,7 +464,11 @@ let excludeProjRef (opts: CrackerOptions) (dllRefs: IDictionary<string, string>)
     let isExcluded =
         opts.Exclude
         |> List.exists (fun e ->
-            String.Equals(e, Path.GetFileNameWithoutExtension(projRef), StringComparison.OrdinalIgnoreCase)
+            String.Equals(
+                e,
+                Path.GetFileNameWithoutExtension(projRef),
+                StringComparison.OrdinalIgnoreCase
+            )
         )
 
     if isExcluded then
@@ -521,7 +533,7 @@ let getCrackedMainFsproj (opts: CrackerOptions) (projectOptionsResponse: Project
         TreatWarningsAsErrors = treatWarningsAsErrors
     }
 
-let getProjectOptionsFromScript (opts: CrackerOptions) : CrackedFsproj =
+let getProjectOptionsFromScript(opts: CrackerOptions) : CrackedFsproj =
     let projectFilePath = opts.ProjFile
 
     let projOpts, _diagnostics = // TODO: Check diagnostics
@@ -529,7 +541,12 @@ let getProjectOptionsFromScript (opts: CrackerOptions) : CrackedFsproj =
 
         let text = File.readAllTextNonBlocking (projectFilePath) |> SourceText.ofString
 
-        checker.GetProjectOptionsFromScript(projectFilePath, text, useSdkRefs = true, assumeDotNetFramework = false)
+        checker.GetProjectOptionsFromScript(
+            projectFilePath,
+            text,
+            useSdkRefs = true,
+            assumeDotNetFramework = false
+        )
         |> Async.RunSynchronously
 
     let projOpts = Array.append projOpts.OtherOptions projOpts.SourceFiles
@@ -560,7 +577,10 @@ let crackReferenceProject
         resolver.GetProjectOptionsFromProjectFile(false, opts, projFile)
 
     let sourceFiles, otherOpts =
-        Array.foldBack (extractUsefulOptionsAndSources false) projectOptionsResponse.ProjectOptions ([], [])
+        Array.foldBack
+            (extractUsefulOptionsAndSources false)
+            projectOptionsResponse.ProjectOptions
+            ([], [])
 
     {
         ProjectFile = projFile
@@ -613,7 +633,7 @@ let getCrackedProjects (resolver: ProjectCrackerResolver) (opts: CrackerOptions)
 let retryGetCrackedProjects (resolver: ProjectCrackerResolver) opts =
     let retryUntil = (DateTime.Now + TimeSpan.FromSeconds 2.)
 
-    let rec retry () =
+    let rec retry() =
         try
             getCrackedProjects resolver opts
         with
@@ -629,7 +649,7 @@ let retryGetCrackedProjects (resolver: ProjectCrackerResolver) opts =
 
 // Replace the .fsproj extension with .fableproj for files in fable_modules
 // We do this to avoid conflicts with other F# tooling that scan for .fsproj files
-let changeFsprojToFableproj (path: string) =
+let changeFsprojToFableproj(path: string) =
     if path.EndsWith(".fsproj", StringComparison.Ordinal) then
         IO.Path.ChangeExtension(path, Naming.fableProjExt)
     else
@@ -662,7 +682,7 @@ let copyDirIfDoesNotExist replaceFsprojExt (source: string) (target: string) =
     if File.isDirectoryEmpty target then
         copyDir replaceFsprojExt source target
 
-let getFableLibraryPath (opts: CrackerOptions) =
+let getFableLibraryPath(opts: CrackerOptions) =
     let buildDir, libDir =
         match opts.FableOptions.Language, opts.FableLib with
         | Dart, None -> "fable-library-dart", "fable_library"
@@ -688,10 +708,7 @@ let getFableLibraryPath (opts: CrackerOptions) =
 
             baseDir
             |> File.tryFindNonEmptyDirectoryUpwards
-                {|
-                    matches = [ buildDir; "temp/" + buildDir ]
-                    exclude = [ "src" ]
-                |}
+                {| matches = [ buildDir; "temp/" + buildDir ]; exclude = [ "src" ] |}
             |> Option.defaultWith (fun () ->
                 Fable.FableError
                     $"Cannot find [temp/]{buildDir} from {baseDir}.\nPlease, make sure you build {buildDir}"
@@ -722,9 +739,11 @@ let copyFableLibraryAndPackageSources (opts: CrackerOptions) (pkgs: FablePackage
 
 // Separate handling for Python. Use plain lowercase package names without dots or version info.
 let copyFableLibraryAndPackageSourcesPy (opts: CrackerOptions) (pkgs: FablePackage list) =
+
     let pkgRefs =
         pkgs
         |> List.map (fun pkg ->
+
             let sourceDir = IO.Path.GetDirectoryName(pkg.FsprojPath)
 
             let targetDir =
@@ -740,13 +759,15 @@ let copyFableLibraryAndPackageSourcesPy (opts: CrackerOptions) (pkgs: FablePacka
 
             copyDirIfDoesNotExist false sourceDir targetDir
 
-            { pkg with FsprojPath = IO.Path.Combine(targetDir, IO.Path.GetFileName(pkg.FsprojPath)) }
+            { pkg with
+                FsprojPath = IO.Path.Combine(targetDir, IO.Path.GetFileName(pkg.FsprojPath))
+            }
         )
 
     getFableLibraryPath opts, pkgRefs
 
 // See #1455: F# compiler generates *.AssemblyInfo.fs in obj folder, but we don't need it
-let removeFilesInObjFolder (sourceFiles: string[]) =
+let removeFilesInObjFolder(sourceFiles: string[]) =
     let reg = Regex(@"[\\\/]obj[\\\/]")
     sourceFiles |> Array.filter (reg.IsMatch >> not)
 
@@ -754,7 +775,7 @@ let loadPrecompiledInfo (opts: CrackerOptions) otherOptions sourceFiles =
     // Sources in fable_modules correspond to packages and they're qualified with the version
     // (e.g. fable_modules/Fable.Promise.2.1.0/Promise.fs) so we assume they're the same wherever they are
     // TODO: Check if this holds true also for Python which may not include the version number in the path
-    let normalizePath (path: string) =
+    let normalizePath(path: string) =
         let i = path.IndexOf(Naming.fableModules, StringComparison.Ordinal)
 
         if i >= 0 then
@@ -800,7 +821,9 @@ let loadPrecompiledInfo (opts: CrackerOptions) otherOptions sourceFiles =
                         |> List.map (fun f -> "    " + File.relPathToCurDir f)
                         |> String.concat Log.newLine
                     // TODO: This should likely be an error but make it a warning for now
-                    Log.warning ($"Detected outdated files in precompiled lib:{Log.newLine}{outdated}")
+                    Log.warning (
+                        $"Detected outdated files in precompiled lib:{Log.newLine}{outdated}"
+                    )
         with er ->
             Log.warning ("Cannot check timestamp of precompiled files: " + er.Message)
 
@@ -826,7 +849,7 @@ let getFullProjectOpts (resolver: ProjectCrackerResolver) (opts: CrackerOptions)
         |> Option.filter (fun cacheInfo ->
             let cacheTimestamp = cacheInfo.GetTimestamp()
 
-            let isOlderThanCache (filePath: string) =
+            let isOlderThanCache(filePath: string) =
                 let fileTimestamp = IO.File.GetLastWriteTime(filePath)
                 let isOlder = fileTimestamp < cacheTimestamp
 
@@ -880,7 +903,10 @@ let getFullProjectOpts (resolver: ProjectCrackerResolver) (opts: CrackerOptions)
                 && cacheInfo.SourceMapsRoot = opts.SourceMapsRoot
 
             if not sameOptions then
-                Log.verbose (lazy "Won't reuse compiled files because last compilation used different options")
+                Log.verbose (
+                    lazy
+                        "Won't reuse compiled files because last compilation used different options"
+                )
 
                 false
             else
@@ -937,7 +963,9 @@ let getFullProjectOpts (resolver: ProjectCrackerResolver) (opts: CrackerOptions)
 
         let pkgRefs =
             pkgRefs
-            |> List.map (fun pkg -> { pkg with SourcePaths = getSourcesFromFablePkg opts pkg.FsprojPath })
+            |> List.map (fun pkg ->
+                { pkg with SourcePaths = getSourcesFromFablePkg opts pkg.FsprojPath }
+            )
 
         let sourcePaths =
             let pkgSources = pkgRefs |> List.collect (fun x -> x.SourcePaths)

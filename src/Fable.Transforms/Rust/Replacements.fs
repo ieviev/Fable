@@ -364,8 +364,15 @@ let emitFormat (com: ICompiler) r t (args: Expr list) macro =
             (emitRawString "{0}") :: str :: restArgs
         | _ -> (emitRawString "{0}") :: args
 
-    let unboxedArgs = args |> FSharp2Fable.Util.unboxBoxedArgs
-    Helper.LibCall(com, "String", macro, t, unboxedArgs)
+    let template =
+        match args.Length with
+        | 1 -> "println!($0)"
+        | 2 -> "println!($0, $1)"
+        | 3 -> "println!($0, $1, $2)"
+        | _ -> "println!($0, $1, $2)"
+
+    emitExpr None String args template
+
 
 let getMut expr =
     Helper.InstanceCall(expr, "get_mut", expr.Type, [])
@@ -991,7 +998,7 @@ let fsFormat
         "printf!" |> makeRustFormatExpr com r t fmt [] |> Some
     | "PrintFormat", None, _ -> "printf!" |> emitFormat com r t args |> Some
     | "PrintFormatLine", None, [ StringConst fmt ] ->
-        "printfn!" |> makeRustFormatExpr com r t fmt [] |> Some
+        "println!" |> makeRustFormatExpr com r t fmt [] |> Some
     | "PrintFormatLine", None, _ -> "printfn!" |> emitFormat com r t args |> Some
     | "PrintFormatToTextWriter", None, [ StringConst fmt ] ->
         "printf!" |> makeRustFormatExpr com r t fmt [] |> Some

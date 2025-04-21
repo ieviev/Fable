@@ -189,6 +189,7 @@ module UsageTracking =
         usageCounts |> Map
 
 module TypeInfo =
+    open Fable.Transforms.Rust.AST.Types
 
     let makeFullNamePath fullName genArgsOpt =
         let parts = splitNameParts fullName
@@ -221,16 +222,31 @@ module TypeInfo =
         let importName = getLibraryImportName com ctx moduleName typeName
         tys |> mkGenericTy (splitNameParts importName)
 
-    let makeCastTy com ctx (ty: Rust.Ty) : Rust.Ty = ty
+    // let makeStdImportType com ctx moduleName typeName tys : Rust.Ty =
+    //     let selector = moduleName + "::" + typeName
+    //     let libPath = getLibPath com moduleName
+    //     // let importName = getLibraryImportName com ctx moduleName typeName
+    //     tys |> mkGenericTy (splitNameParts importName)
+
+    let makeCastTy com ctx (ty: Rust.Ty) : Rust.Ty = failwith "castty"
     // [ ty ] |> makeImportType com ctx "Native" "Lrc"
 
-    let makeFluentTy com ctx (ty: Rust.Ty) : Rust.Ty = ty
+    let makeFluentTy com ctx (ty: Rust.Ty) : Rust.Ty = failwith "fluentty"
     // [ ty ] |> makeImportType com ctx "Native" "Lrc"
 
-    let makeLrcPtrTy com ctx (ty: Rust.Ty) : Rust.Ty = ty
+    let makeLrcPtrTy com ctx (ty: Rust.Ty) : Rust.Ty =
+        [ ty ] |> mkGenericTy (splitNameParts "std::rc::Rc")
 
-    let makeRcTy com ctx (ty: Rust.Ty) : Rust.Ty =
+    let makeRcTy (com: IRustCompiler) (ctx: Context) (ty: Rust.Ty) : Rust.Ty =
+        // [ty ] |> mkGenericTy (splitNameParts "std::rc::Rc")
         [ ty ] |> makeImportType com ctx "std::rc" "Rc"
+
+    // // transformGenericType// com ctx [ ty ] "std::rc::Rc"
+    // // transformGenArgs
+    // let genArgsOpt = transformGenArgs com ctx [ ty ]
+    // // transformGenericType com ctx [ ty ] "std::rc::Rc"
+    // [ ty ] |> makeImportType com ctx "std::rc" "Rc"
+    // makeFullNamePath "std::rc::Rc" genArgsOpt |> mkPathTy
 
     let makeArcTy com ctx (ty: Rust.Ty) : Rust.Ty =
         [ ty ] |> makeImportType com ctx "std::sync" "Arc"
@@ -493,9 +509,6 @@ module TypeInfo =
             tryGetIdentName expr
         | _ -> None
 
-    // let getIdentName expr =
-    //     tryGetIdentName expr |> Option.defaultValue ""
-
     let isDeclEntityKindOf (com: IRustCompiler) isKindOf (memberRef: Fable.MemberRef) =
         memberRef
         |> com.TryGetMember
@@ -510,8 +523,18 @@ module TypeInfo =
     let isModuleMemberCall (com: IRustCompiler) (callInfo: Fable.CallInfo) =
         callInfo.MemberRef |> Option.map (isModuleMemberRef com) |> Option.defaultValue false
 
-    let transformImport (com: IRustCompiler) ctx r t (info: Fable.ImportInfo) genArgsOpt =
-        if info.Selector.Contains("*") || info.Selector.Contains("{") then
+    let transformImport
+        (com: IRustCompiler)
+        ctx
+        r
+        (t: Fable.Type)
+        (info: Fable.ImportInfo)
+        genArgsOpt
+        =
+        if t.IsString then
+            mkUnitExpr ()
+        // makeFullNamePathExpr "String" None
+        elif info.Selector.Contains("*") || info.Selector.Contains("{") then
             let importName = com.GetImportName(ctx, info.Selector, info.Path, r)
             mkUnitExpr () // just an import without a body
         else
@@ -552,28 +575,22 @@ module TypeInfo =
     let transformGenTypes com ctx genArgs : Rust.Ty list =
         genArgs |> List.filter (isUnitOfMeasure >> not) |> List.map (transformType com ctx)
 
-    let transformGenArgs com ctx genArgs : Rust.GenericArgs option =
+    let transformGenArgs
+        (com: IRustCompiler)
+        (ctx: Context)
+        (genArgs: Fable.Type list)
+        : Rust.GenericArgs option
+        =
         genArgs |> transformGenTypes com ctx |> mkTypesGenericArgs
 
-    // // if type cannot be resolved, make it unit type
-    // let resolveType com ctx t =
-    //     match t with
-    //     | Fable.Any when ctx.InferAnyType ->
-    //         Fable.Unit
-    //     | Fable.GenericParam(name, isMeasure, constraints)
-    //         when ctx.InferAnyType && not isMeasure && not (Set.contains name ctx.ScopedEntityGenArgs)
-    //          -> Fable.Unit
-    //     | _ -> t
 
-    // let transformTypeResolved com ctx typ: Rust.Ty =
-    //     transformType com ctx (resolveType com ctx typ)
-
-    // let transformGenArgsResolved com ctx genArgs: Rust.GenericArgs option =
-    //     genArgs
-    //     |> List.map (resolveType com ctx)
-    //     |> transformGenArgs com ctx
-
-    let transformGenericType com ctx genArgs typeName : Rust.Ty =
+    let transformGenericType
+        (com: IRustCompiler)
+        (ctx: Context)
+        (genArgs: Fable.Type list)
+        (typeName: string)
+        : Rust.Ty
+        =
         genArgs |> transformGenTypes com ctx |> mkGenericTy (splitNameParts typeName)
 
     let transformImportType com ctx genArgs moduleName typeName : Rust.Ty =
@@ -599,7 +616,8 @@ module TypeInfo =
         transformImportType com ctx genArgs "Map" "Map"
 
     let transformArrayType com ctx genArg : Rust.Ty =
-        transformImportType com ctx [ genArg ] "NativeArray" "Array"
+        transformGenericType com ctx [ genArg ] "Vec"
+    // makeNew com ctx "Native" "OnceInit" []
 
     let transformHashSetType com ctx genArg : Rust.Ty =
         transformImportType com ctx [ genArg ] "HashSet" "HashSet"
@@ -694,8 +712,10 @@ module TypeInfo =
             | Fable.CoreAssemblyName _ ->
                 //TODO: perhaps only import from library if it's already implemented BCL class
                 let importPath = "fable_library_rust"
-                let importName = com.GetImportName(ctx, entRef.FullName, importPath, None)
-                importName
+                // let importName = com.GetImportName(ctx, entRef.FullName, importPath, None)
+                // importName
+                // "NO"
+                entRef.FullName
             | _ -> entRef.FullName
 
     let tryFindInterface
@@ -856,8 +876,6 @@ module TypeInfo =
     let transformMetaType com ctx : Rust.Ty =
         transformImportType com ctx [] "Reflection" "TypeId"
 
-    let transformStringType com ctx : Rust.Ty =
-        transformImportType com ctx [] "String" "String"
 
     let transformBuiltinType com ctx typ kind : Rust.Ty =
         match kind with
@@ -881,17 +899,7 @@ module TypeInfo =
             else
                 let typev = transformType com ctx genArg
                 typev
-    // let muty : Fable.Transforms.Rust.AST.Types.MutTy =
-    //     {
-    //         ty = typ
-    //         mutbl = Fable.Transforms.Rust.AST.Types.Mutability.Mut
-    //     }
 
-    // { ty with kind =  Fable.Transforms.Rust.AST.Types.TyKind.Rptr(None,muty) }
-
-    // transformType com ctx genArg
-    // failwith "refcell"
-    // transformRefCellType com ctx genArg
 
     let transformType (com: IRustCompiler) ctx (typ: Fable.Type) : Rust.Ty =
         let ty =
@@ -901,7 +909,7 @@ module TypeInfo =
             | Fable.Measure _ -> mkInferTy ()
             | Fable.Char -> primitiveType "char"
             | Fable.Boolean -> primitiveType "bool"
-            | Fable.String -> transformStringType com ctx
+            | Fable.String -> primitiveType "String"
             | Fable.MetaType -> transformMetaType com ctx
             | Fable.Number(kind, _) -> transformNumberType com ctx kind
             | Fable.LambdaType(argType, returnType) ->
@@ -1135,11 +1143,11 @@ module Util =
         let ty = transformType com ctx ident.Type
 
         if isByRefType com ident.Type then
-            ty // already wrapped
-        // elif ident.IsMutable && isCaptured then
-        //     ty |> makeMutTy com ctx |> makeLrcPtrTy com ctx
-        // elif ident.IsMutable then
-        //     ty |> makeMutTy com ctx
+            ty |> mkRefTy None //|> makeLrcPtrTy com ctx
+        // // elif ident.IsMutable && isCaptured then
+        // //     ty |> makeMutTy com ctx |> makeLrcPtrTy com ctx
+        // // elif ident.IsMutable then
+        // //     ty |> makeMutTy com ctx
         else
             ty
 
@@ -1257,25 +1265,6 @@ module Util =
             expr |> makeAsRef |> makeClone //.ToValueTuple()
         | Fable.Tuple(ga1, true), Fable.Tuple(ga2, false) when ga1 = ga2 ->
             expr |> makeLrcPtrValue com ctx //.ToTuple()
-
-        // casts to IEnumerable
-        | Replacements.Util.IsEntity (Types.keyCollection) _, IEnumerable _
-        | Replacements.Util.IsEntity (Types.valueCollection) _, IEnumerable _
-        | Replacements.Util.IsEntity (Types.icollectionGeneric) _, IEnumerable _
-        | Fable.Array _, IEnumerable _ -> makeLibCall com ctx None "Seq" "ofArray" [ expr ]
-        | Fable.List _, IEnumerable _ -> makeLibCall com ctx None "Seq" "ofList" [ expr ]
-        | Fable.String, IEnumerable _ ->
-            let chars = makeLibCall com ctx None "String" "toCharArray" [ expr ]
-            makeLibCall com ctx None "Seq" "ofArray" [ chars ]
-        | Replacements.Util.IsEntity (Types.hashset) _, IEnumerable _
-        | Replacements.Util.IsEntity (Types.iset) _, IEnumerable _ ->
-            let ar = makeLibCall com ctx None "HashSet" "entries" [ expr ]
-            makeLibCall com ctx None "Seq" "ofArray" [ ar ]
-        | Replacements.Util.IsEntity (Types.dictionary) _, IEnumerable _
-        | Replacements.Util.IsEntity (Types.idictionary) _, IEnumerable _
-        | Replacements.Util.IsEntity (Types.ireadonlydictionary) _, IEnumerable _ ->
-            let ar = makeLibCall com ctx None "HashMap" "entries" [ expr ]
-            makeLibCall com ctx None "Seq" "ofArray" [ ar ]
 
         // boxing value types or wrapped types
         | t, Fable.Any when isValueType com t || isWrappedType com t -> expr |> boxValue com ctx
@@ -1540,11 +1529,6 @@ module Util =
 
             mkFloat64LitExpr (string<float> 0.)
 
-    let makeStaticString com ctx (value: Rust.Expr) =
-        makeLibCall com ctx None "String" "string" [ value ]
-
-    let makeStringFrom com ctx (value: Rust.Expr) =
-        makeLibCall com ctx None "String" "fromString" [ value ]
 
     let makeNullCheck com ctx (value: Rust.Expr) =
         makeLibCall com ctx None "Native" "is_null" [ value ]
@@ -1592,7 +1576,8 @@ module Util =
                 |> mkArrayExpr
                 |> mkAddrOfExpr
 
-            makeLibCall com ctx None "NativeArray" "new_array" [ arrayExpr ]
+            // makeLibCall com ctx None "NativeArray" "new_array" [ arrayExpr ]
+            arrayExpr
 
     let makeArrayFrom (com: IRustCompiler) ctx r typ fableExpr =
         match fableExpr with
@@ -1721,7 +1706,7 @@ module Util =
         | Fable.UnitConstant -> mkUnitExpr ()
         | Fable.BoolConstant b -> mkBoolLitExpr b //, ?loc=r)
         | Fable.CharConstant c -> mkCharLitExpr c //, ?loc=r)
-        | Fable.StringConstant s -> mkStrLitExpr s |> makeStaticString com ctx
+        | Fable.StringConstant s -> mkStrLitExpr s
         | Fable.StringTemplate(_tag, parts, values) -> failwith "unsupported"
         | Fable.NumberConstant(x, _) -> makeNumber com ctx r value.Type x
         | Fable.RegexConstant(source, flags) -> unimplemented ()
@@ -2039,10 +2024,12 @@ module Util =
                 let left = transformLeaveContext com ctx None leftExpr |> maybeAddParens leftExpr
                 let right = transformLeaveContext com ctx None rightExpr |> maybeAddParens rightExpr
 
-                match leftExpr.Type, kind with
-                | Fable.String, Rust.BinOpKind.Add ->
-                    makeLibCall com ctx None "String" "append" [ left; right ]
-                | _ -> mkBinaryExpr (mkBinOp kind) left right // ?loc=range)
+                // match leftExpr.Type, kind with
+                // | Fable.String, Rust.BinOpKind.Add ->
+
+                //     makeLibCall com ctx None "String" "append" [ left; right ]
+                // | _ ->
+                mkBinaryExpr (mkBinOp kind) left right // ?loc=range)
 
         | Fable.Logical(op, TransformExpr com ctx left, TransformExpr com ctx right) ->
             let kind =
@@ -2203,8 +2190,8 @@ module Util =
                     let callee = transformCallee com ctx calleeExpr
                     mkCallExpr callee args
 
-    let mutableGet expr =
-        mkMethodCallExpr "get" None expr [] |> makeClone
+    let mutableGet expr = expr
+    // mkMethodCallExpr "get" None expr [] |> makeClone
 
     let mutableGetMut expr = mkMethodCallExpr "get_mut" None expr []
 
@@ -2244,12 +2231,6 @@ module Util =
                 // anonymous records are tuples, transpile as tuple get
                 let idx = fields |> Array.findIndex (fun f -> f = info.Name)
                 (Fable.TupleIndex(idx)) |> transformGet com ctx range typ fableExpr
-            // | t when isInterface com t ->
-            //     // for interfaces, transpile get_property as instance call
-            //     makeInstanceCall com ctx info.Name fableExpr []
-            // | Fable.GenericParam(_name, _isMeasure, _constraints) ->
-            //     // for generic types, transpile get_property as instance call
-            //     makeInstanceCall com ctx info.Name fableExpr []
             | _ ->
                 // for everything else, transpile as field get
                 let expr = transformCallee com ctx fableExpr
@@ -2450,7 +2431,8 @@ module Util =
             initOpt
             |> Option.map (fun init ->
                 if isByRefType com ident.Type then
-                    init // already wrapped
+                    // init |> makeLrcPtrValue com ctx // already wrapped
+                    init
                 else
                     init
             )
@@ -2998,31 +2980,6 @@ module Util =
             | e -> e
         )
 
-    // let groupSwitchCases t (cases: (Fable.Expr * int * Fable.Expr list) list) (defaultIndex, defaultBoundValues) =
-    //     cases
-    //     |> List.groupBy (fun (_, idx, boundValues) ->
-    //         // Try to group cases with some target index and empty bound values
-    //         // If bound values are non-empty use also a non-empty Guid to prevent grouping
-    //         if List.isEmpty boundValues then
-    //             idx, System.Guid.Empty
-    //         else
-    //             idx, System.Guid.NewGuid()
-    //     )
-    //     |> List.map (fun ((idx, _), cases) ->
-    //         let caseExprs = cases |> List.map Tuple3.item1
-    //         // If there are multiple cases, it means boundValues are empty
-    //         // (see `groupBy` above), so it doesn't mind which one we take as reference
-    //         let boundValues = cases |> List.head |> Tuple3.item3
-    //         caseExprs, Fable.DecisionTreeSuccess(idx, boundValues, t)
-    //     )
-    //     |> function
-    //         | [] -> []
-    //         // Check if the last case can also be grouped with the default branch, see #2357
-    //         | cases when List.isEmpty defaultBoundValues ->
-    //             match List.splitLast cases with
-    //             | cases, (_, Fable.DecisionTreeSuccess(idx, [], _)) when idx = defaultIndex -> cases
-    //             | _ -> cases
-    //         | cases -> cases
 
     let getTargetsWithMultipleReferences expr =
         let rec findSuccess(targetRefs: Map<int, int>) =
@@ -3238,6 +3195,7 @@ module Util =
             com.SourceFiles
             |> Array.filter (fun x -> not (x.EndsWith(".fsi", StringComparison.Ordinal)))
             |> Array.iter (fun filePath ->
+                // stderr.WriteLine filePath
                 if filePath <> com.CurrentFile then
                     let relPath = Path.getRelativePath com.CurrentFile filePath
                     com.GetImportName(ctx, "*", relPath, None) |> ignore
@@ -4957,8 +4915,12 @@ module Util =
             moduleImports
             |> List.sortBy (fun import -> import.Selector)
             |> List.map (fun import ->
+                stdout.WriteLine $"importing####: {import.Path}"
+                // stdout.WriteLine $"importing####M: {import.ModulePath}"
+                // stdout.WriteLine $"importing####L: {import.LocalIdent}"
+                // stdout.WriteLine $"importing####SEL: {import.Selector}"
                 let modPath =
-                    if import.Path.Length = 0 then
+                    if import.Path.Length = 0 || import.Selector.StartsWith "std::" then
                         [] // empty path, means direct import of the selector
                     else
                         [ "crate" ]
@@ -5020,6 +4982,9 @@ module Compiler =
                     addWarning com [] range msg
 
             member self.GetImportName(ctx, selector, path, r) =
+                stderr.WriteLine $"importing: %A{path}"
+                // if path.Contains "fable-library-rust" then
+                //     failwith "importing lib"
                 if selector = Fable.Naming.placeholder then
                     "`importMember` must be assigned to a variable" |> addError com [] r
 
@@ -5054,7 +5019,7 @@ module Compiler =
                                 Depths = [ ctx.ModuleDepth ]
                             }
                         // add import module to a global list (across files)
-                        if path.Length > 0 then
+                        if path.Length > 0 && not (modulePath.Contains("RUST_LIBRARY_PATH")) then
                             importModules.TryAdd(modulePath, true) |> ignore
 
                         imports.Add(cacheKey, import)
@@ -5161,12 +5126,13 @@ module Compiler =
             [
                 if isLastFileInProject com then
                     // adds "no_std" to crate if feature is enabled
-                    mkInnerAttr "cfg_attr" [ "feature = \"no_std\""; "no_std" ]
-
-                    mkInnerAttr "allow" [ "dead_code" ]
-                    mkInnerAttr "allow" [ "non_snake_case" ]
-                    mkInnerAttr "allow" [ "non_upper_case_globals" ]
-                    mkInnerAttr "allow" [ "unused" ]
+                    // mkInnerAttr "cfg_attr" [ "feature = \"no_std\""; "no_std" ]
+                    mkInnerAttr
+                        "allow"
+                        [ "unused"; "dead_code"; "non_snake_case"; "non_upper_case_globals" ]
+            // mkInnerAttr "allow" [ "non_snake_case" ]
+            // mkInnerAttr "allow" [ "non_upper_case_globals" ]
+            // mkInnerAttr "allow" [ "unused" ]
             ]
 
         let importItems = com.GetAllImports(ctx) |> transformImports com ctx

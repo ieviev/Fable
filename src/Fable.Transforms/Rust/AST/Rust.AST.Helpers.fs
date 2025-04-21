@@ -39,8 +39,8 @@ module Naming =
             ident + "_"
         elif allKeywords.Contains(ident) then
             rawIdent ident
-        elif rustPrelude.Contains(ident) then
-            ident + "_"
+        // elif rustPrelude.Contains(ident) then
+        //     ident + "_"
         else
             stripRaw ident // no need to keep it raw here
 

@@ -1125,7 +1125,8 @@ module AST =
                 |> (fun str -> str.Replace(".", "_"))
 
             com.LibraryDir + "/" + moduleName' + ".py"
-        | Rust -> com.LibraryDir + "/" + moduleName + ".rs"
+        | Rust -> "RUST_LIBRARY_PATH.rs"
+        // com.LibraryDir + "/" + moduleName + ".rs"
         | Dart -> com.LibraryDir + "/" + moduleName + ".dart"
         | _ -> com.LibraryDir + "/" + moduleName + ".js"
 
