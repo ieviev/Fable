@@ -37,7 +37,7 @@ type Stream =
 
                         equal
 
-                let rec areStreamsEqual () =
+                let rec areStreamsEqual() =
                     async {
                         let! count1 = stream1.AsyncRead(buffer1, 0, buffer1.Length)
 
@@ -80,7 +80,13 @@ type Stream =
 
 module Js =
     type BabelWriter
-        (com: Compiler, cliArgs: CliArgs, pathResolver: PathResolver, sourcePath: string, targetPath: string)
+        (
+            com: Compiler,
+            cliArgs: CliArgs,
+            pathResolver: PathResolver,
+            sourcePath: string,
+            targetPath: string
+        )
         =
         // In imports *.ts extensions have to be converted to *.js extensions instead
         let fileExt =
@@ -105,7 +111,9 @@ module Js =
                     let mapPath = targetPath + ".map"
 
                     do!
-                        stream.WriteLineAsync($"//# sourceMappingURL={IO.Path.GetFileName(mapPath)}")
+                        stream.WriteLineAsync(
+                            $"//# sourceMappingURL={IO.Path.GetFileName(mapPath)}"
+                        )
                         |> Async.AwaitTask
 
                 do! stream.FlushAsync() |> Async.AwaitTask
@@ -124,8 +132,7 @@ module Js =
             // Don't dispose the stream here because we need to access the memory stream to check if file has changed
             member _.Dispose() = ()
 
-            member _.Write(str) =
-                stream.WriteAsync(str) |> Async.AwaitTask
+            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
 
             member _.MakeImportPath(path) =
                 let projDir = IO.Path.GetDirectoryName(cliArgs.ProjectFile)
@@ -137,12 +144,22 @@ module Js =
                     | None -> path
 
                 let path =
-                    Imports.getImportPath pathResolver sourcePath targetPath projDir cliArgs.OutDir path
+                    Imports.getImportPath
+                        pathResolver
+                        sourcePath
+                        targetPath
+                        projDir
+                        cliArgs.OutDir
+                        path
 
                 if path.EndsWith(".fs", StringComparison.Ordinal) then
                     let isInFableModules = Path.Combine(targetDir, path) |> Naming.isInFableModules
 
-                    File.changeExtensionButUseDefaultExtensionInFableModules JavaScript isInFableModules path fileExt
+                    File.changeExtensionButUseDefaultExtensionInFableModules
+                        JavaScript
+                        isInFableModules
+                        path
+                        fileExt
                 else
                     path
 
@@ -152,16 +169,10 @@ module Js =
             member _.AddSourceMapping(srcLine, srcCol, genLine, genCol, file, displayName) =
                 if cliArgs.SourceMaps then
                     let generated: SourceMapSharp.Util.MappingIndex =
-                        {
-                            line = genLine
-                            column = genCol
-                        }
+                        { line = genLine; column = genCol }
 
                     let original: SourceMapSharp.Util.MappingIndex =
-                        {
-                            line = srcLine
-                            column = srcCol
-                        }
+                        { line = srcLine; column = srcCol }
 
                     let targetPath = Path.normalizeFullPath targetPath
 
@@ -175,7 +186,14 @@ module Js =
                     // I believe for now we can ship it like that because it only deteriorate the source map
                     // it should not break them completely.
                     if srcLine <> 0 && srcCol <> 0 && file <> Some "unknown" then
-                        mapGenerator.Force().AddMapping(generated, original, source = sourcePath, ?name = displayName)
+                        mapGenerator
+                            .Force()
+                            .AddMapping(
+                                generated,
+                                original,
+                                source = sourcePath,
+                                ?name = displayName
+                            )
 
     let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPath: string) =
         async {
@@ -233,8 +251,7 @@ module Python =
                 |> Path.normalizeFullPath
 
         interface Printer.Writer with
-            member _.Write(str) =
-                stream.WriteAsync(str) |> Async.AwaitTask
+            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
 
             member _.Dispose() = stream.Dispose()
 
@@ -304,7 +321,13 @@ module Python =
                             | None -> None
 
                         let resolvedPath =
-                            Imports.getImportPath pathResolver sourcePath targetPathForResolution projDir outDir path
+                            Imports.getImportPath
+                                pathResolver
+                                sourcePath
+                                targetPathForResolution
+                                projDir
+                                outDir
+                                path
 
                         let parts = resolvedPath.Split('/')
 
@@ -318,7 +341,7 @@ module Python =
     let initFileWriter =
         new MailboxProcessor<string>(fun mb ->
             async {
-                let rec loop (seen: Set<string>) =
+                let rec loop(seen: Set<string>) =
                     async {
                         let! outPath = mb.Receive()
 
@@ -363,14 +386,19 @@ module Php =
         let stream = new IO.StreamWriter(targetPath)
 
         interface Printer.Writer with
-            member _.Write(str) =
-                stream.WriteAsync(str) |> Async.AwaitTask
+            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
 
             member _.MakeImportPath(path) =
                 let projDir = IO.Path.GetDirectoryName(cliArgs.ProjectFile)
 
                 let path =
-                    Imports.getImportPath pathResolver sourcePath targetPath projDir cliArgs.OutDir path
+                    Imports.getImportPath
+                        pathResolver
+                        sourcePath
+                        targetPath
+                        projDir
+                        cliArgs.OutDir
+                        path
 
                 if path.EndsWith(".fs", StringComparison.Ordinal) then
                     Path.ChangeExtension(path, fileExt)
@@ -404,12 +432,17 @@ module Dart =
         let stream = new IO.StreamWriter(targetPath)
 
         interface Printer.Writer with
-            member _.Write(str) =
-                stream.WriteAsync(str) |> Async.AwaitTask
+            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
 
             member _.MakeImportPath(path) =
                 let path =
-                    Imports.getImportPath pathResolver sourcePath targetPath projDir cliArgs.OutDir path
+                    Imports.getImportPath
+                        pathResolver
+                        sourcePath
+                        targetPath
+                        projDir
+                        cliArgs.OutDir
+                        path
 
                 if path.EndsWith(".fs", StringComparison.Ordinal) then
                     Path.ChangeExtension(path, fileExt)
@@ -453,7 +486,9 @@ module Rust =
                             str,
                             @"(#\[path\s*=\s*\"")([^""]*)(\""])",
                             fun m ->
-                                let path = (self :> Printer.Writer).MakeImportPath(m.Groups[2].Value)
+                                let path =
+                                    (self :> Printer.Writer).MakeImportPath(m.Groups[2].Value)
+
                                 m.Groups[1].Value + path + m.Groups[3].Value
                         )
                     else
@@ -465,7 +500,13 @@ module Rust =
                 let projDir = IO.Path.GetDirectoryName(cliArgs.ProjectFile)
 
                 let path =
-                    Imports.getImportPath pathResolver sourcePath targetPath projDir cliArgs.OutDir path
+                    Imports.getImportPath
+                        pathResolver
+                        sourcePath
+                        targetPath
+                        projDir
+                        cliArgs.OutDir
+                        path
 
                 if path.EndsWith(".fs", StringComparison.Ordinal) then
                     Path.ChangeExtension(path, fileExt)
@@ -487,11 +528,24 @@ module Rust =
                 |> Fable2Rust.Compiler.transformFile com
 
             if not (isSilent || RustPrinter.isEmpty crate) then
+                let dir = IO.Path.GetDirectoryName outPath
+
+                if not (IO.Directory.Exists dir) then
+                    IO.Directory.CreateDirectory dir |> ignore
+
                 use writer = new RustWriter(com, cliArgs, pathResolver, outPath)
                 do! RustPrinter.run writer crate
+
+            ()
         }
 
 let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPath: string) =
+    if com.Options.Language <> Language.Rust then
+        let dir = IO.Path.GetDirectoryName outPath
+
+        if not (IO.Directory.Exists dir) then
+            IO.Directory.CreateDirectory dir |> ignore
+
     match com.Options.Language with
     | JavaScript
     | TypeScript -> Js.compileFile com cliArgs pathResolver isSilent outPath

@@ -5,7 +5,9 @@ module Rust = Fable.Transforms.Rust.AST.Types
 open Fable.Transforms.Rust.AST.State
 open Fable.Transforms.Printer
 
-let isEmpty (crate: Rust.Crate) : bool = false //TODO: determine if printer will not print anything
+let isEmpty(crate: Rust.Crate) : bool = crate.items.Count = 0
+
+// false //TODO: determine if printer will not print anything
 
 let run (writer: Writer) (crate: Rust.Crate) : Async<unit> =
     async {

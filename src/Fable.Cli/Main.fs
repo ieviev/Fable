@@ -192,8 +192,9 @@ module private Util =
                 // ensure directory exists
                 let dir = IO.Path.GetDirectoryName outPath
 
-                if not (IO.Directory.Exists dir) then
-                    IO.Directory.CreateDirectory dir |> ignore
+                // if not (IO.Directory.Exists dir) then
+                //     stdout.WriteLine $"dir:{dir}"
+                //     IO.Directory.CreateDirectory dir |> ignore
 
                 do! Pipeline.compileFile com cliArgs pathResolver isSilent outPath
 

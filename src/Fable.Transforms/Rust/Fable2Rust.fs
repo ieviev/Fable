@@ -3189,13 +3189,18 @@ module Util =
         (Array.last com.SourceFiles) = com.CurrentFile
 
     let getModuleItems (com: IRustCompiler) ctx =
+        let outDir =
+            com.OutputDir
+            |> Option.defaultWith (fun () -> System.IO.Path.GetDirectoryName(com.CurrentFile))
+
         if isLastFileInProject com then
             // add all other source files (except signatures) as module imports
             com.SourceFiles
             |> Array.filter (fun x -> not (x.EndsWith(".fsi", StringComparison.Ordinal)))
             |> Array.iter (fun filePath ->
-                // stderr.WriteLine filePath
+
                 if filePath <> com.CurrentFile then
+                    // stdout.WriteLine $"adding: {filePath}"
                     let relPath = Path.getRelativePath com.CurrentFile filePath
                     com.GetImportName(ctx, "*", relPath, None) |> ignore
             )
@@ -3204,6 +3209,21 @@ module Util =
                 let relPath = Path.getRelativePath com.CurrentFile modulePath
                 let modName = getImportModuleName com modulePath
                 let attrs = [ mkEqAttr "path" relPath ]
+
+                let fullpath = System.IO.Path.Combine(outDir, relPath)
+                let file_exists = System.IO.File.Exists(fullpath)
+                // stdout.WriteLine $"rp: {relPath}"
+                // stdout.WriteLine $"ld: {com.LibraryDir}"
+                // stdout.WriteLine $"od: {outDir}"
+                // stdout.WriteLine $"mp: {modulePath}"
+                // stdout.WriteLine $"com: {com.CurrentFile}"
+                // stdout.WriteLine $"mod: {relPath} : {modName} : {file_exists}"
+                if not file_exists then
+                    []
+                else if relPath.Contains("::") then
+                    []
+                else
+
                 let modItem = mkUnloadedModItem attrs modName
                 let useItem = mkGlobUseItem [] [ modName ]
 
@@ -3791,8 +3811,44 @@ module Util =
                 transformInnerAttributes com ctx ent.Attributes
         )
 
-    let transformModuleAction (com: IRustCompiler) ctx (body: Fable.Expr) =
-        failwith "module actions unsuppoted"
+    let transformModuleAction (com: IRustCompiler) ctx (body: Fable.Expr) : list<AST.Types.Item> =
+        match body with
+        | Fable.Expr.Import(info, typ, range) ->
+            // typ.IsUnit
+            match info.Kind with
+            | Fable.AST.Fable.ImportKind.UserImport(isInline) ->
+                com.GetImportName(ctx, info.Selector, info.Path, None) |> ignore
+            | _ -> failwith $"import: {info}"
+
+            []
+        // | IdentExpr(ident) -> failwith "todo"
+        // | Value(kind,range) -> failwith "todo"
+        // | Lambda(arg,body,name) -> failwith "todo"
+        // | Delegate(args,body,name,tags) -> failwith "todo"
+        // | ObjectExpr(members,typ,basecall) -> failwith "todo"
+        // | TypeCast(expr,typ) -> failwith "todo"
+        // | Test(expr,kind,range) -> failwith "todo"
+        // | Call(callee,info,typ,range) -> failwith "todo"
+        // | CurriedApply(applied,args,typ,range) -> failwith "todo"
+        // | Operation(kind,tags,typ,range) -> failwith "todo"
+
+        // | Emit(info,typ,range) -> failwith "todo"
+        // | DecisionTree(expr,targets) -> failwith "todo"
+        // | DecisionTreeSuccess(targetindex,boundvalues,typ) -> failwith "todo"
+        // | Let(ident,value,body) -> failwith "todo"
+        // | LetRec(bindings,body) -> failwith "todo"
+        // | Get(expr,kind,typ,range) -> failwith "todo"
+        // | Set(expr,kind,typ,value,range) -> failwith "todo"
+        // | Sequential(exprs) -> failwith "todo"
+        // | WhileLoop(guard,body,range) -> failwith "todo"
+        // | ForLoop(ident,start,limit,body,isup,range) -> failwith "todo"
+        // | TryCatch(body,catch,finalizer,range) -> failwith "todo"
+        // | IfThenElse(guardexpr,thenexpr,elseexpr,range) -> failwith "todo"
+        // | Unresolved(expr,typ,range) -> failwith "todo"
+        // | Extended(expr,range) -> failwith "todo"
+        | _ ->
+            // stdout.WriteLine $"{body}"
+            failwith "module actions unsuppoted"
 
 
     let transformModuleFunction
@@ -4999,9 +5055,6 @@ module Compiler =
                     addWarning com [] range msg
 
             member self.GetImportName(ctx, selector, path, r) =
-                // stderr.WriteLine $"importing: %A{path}"
-                // if path.Contains "fable-library-rust" then
-                //     failwith "importing lib"
                 if selector = Fable.Naming.placeholder then
                     "`importMember` must be assigned to a variable" |> addError com [] r
 
@@ -5036,7 +5089,10 @@ module Compiler =
                                 Depths = [ ctx.ModuleDepth ]
                             }
                         // add import module to a global list (across files)
-                        if path.Length > 0 && not (modulePath.Contains("RUST_LIBRARY_PATH")) then
+                        if
+                            path.Length > 0 && not (modulePath.Contains("RUST_LIBRARY_PATH"))
+                        // && not (modulePath.Contains("::"))
+                        then
                             importModules.TryAdd(modulePath, true) |> ignore
 
                         imports.Add(cacheKey, import)
@@ -5045,7 +5101,7 @@ module Compiler =
                 if isMacro then
                     $"{import.LocalIdent}!"
                 else
-                    $"{import.LocalIdent}"
+                    import.LocalIdent
 
             member _.GetAllImports(ctx) =
                 imports.Values
