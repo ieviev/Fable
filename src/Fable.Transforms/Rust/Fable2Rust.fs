@@ -460,18 +460,19 @@ module TypeInfo =
             match com.GetEntity(entRef) with
             | HasEmitAttribute _ -> None
             // do not make custom types Rc-wrapped by default. This prevents inconsistency between type and implementation emit
-            // | HasReferenceTypeAttribute ptrType -> Some ptrType
+            | HasReferenceTypeAttribute ptrType -> Some ptrType
             | ent ->
-                if ent.IsFSharpUnion then
+                if ent.IsValueType then
+                    None
+                else if ent.IsFSharpUnion then
+                    match ent.FullName with
+                    | "Microsoft.FSharp.Core.FSharpResult`2" -> None
+                    | _ ->
+                    // stderr.WriteLine ent.FullName
                     Some Rc
                 else
 
                 None
-        // if ent.IsValueType then
-        //     None
-        // else
-
-        //     Some Lrc
 
         | _ -> None
 
@@ -617,13 +618,12 @@ module TypeInfo =
 
     let transformArrayType com ctx genArg : Rust.Ty =
         transformGenericType com ctx [ genArg ] "Vec"
-    // makeNew com ctx "Native" "OnceInit" []
 
     let transformHashSetType com ctx genArg : Rust.Ty =
-        transformImportType com ctx [ genArg ] "HashSet" "HashSet"
+        transformImportType com ctx [ genArg ] "std::collections" "HashSet"
 
     let transformHashMapType com ctx genArgs : Rust.Ty =
-        transformImportType com ctx genArgs "HashMap" "HashMap"
+        transformImportType com ctx genArgs "std::collections" "HashMap"
 
     let transformGuidType com ctx : Rust.Ty = transformImportType com ctx [] "Guid" "Guid"
 
@@ -728,10 +728,14 @@ module TypeInfo =
         ent.AllInterfaces |> Seq.tryFind (fun ifc -> ifc.Entity.FullName = fullName)
 
     let transformInterfaceType com ctx (entRef: Fable.EntityRef) genArgs : Rust.Ty =
-        let nameParts = getEntityFullName com ctx entRef |> splitNameParts
+        let fullName = getEntityFullName com ctx entRef
         let genArgsOpt = transformGenArgs com ctx genArgs
-        let traitBound = mkTypeTraitGenericBound nameParts genArgsOpt
-        mkDynTraitTy [ traitBound ]
+        // let nameParts = getEntityFullName com ctx entRef //|> splitNameParts
+        // let traitBound = mkTypeTraitGenericBound nameParts genArgsOpt
+        // mkDynTraitTy [ traitBound ]
+        // transformImportType com ctx genArgs "Native" ("Func" )
+        // getEntityFullName com ctx entRef
+        makeFullNamePathTy fullName genArgsOpt
 
     let getAbstractClassImportName com ctx (entRef: Fable.EntityRef) =
         match entRef.FullName with
@@ -988,6 +992,7 @@ module Util =
 
     open UsageTracking
     open TypeInfo
+    open System.Collections.Generic
 
     let (|TransformExpr|) (com: IRustCompiler) ctx e = com.TransformExpr(ctx, e)
 
@@ -1313,10 +1318,6 @@ module Util =
         let importName = getLibraryImportName com ctx moduleName typeName
         makeCall (importName :: "new" :: []) None values
 
-    // let makeFrom com ctx moduleName typeName (value: Rust.Expr) =
-    //     let importName = getLibraryImportName com ctx moduleName typeName
-    //     makeCall [importName; "from"] None [value]
-
     let boxValue com ctx (value: Rust.Expr) =
         [ value ] |> makeLibCall com ctx None "Native" "box_"
 
@@ -1327,18 +1328,16 @@ module Util =
     let makeFluentValue com ctx (value: Rust.Expr) =
         [ value ] |> makeLibCall com ctx None "Native" "fromFluent"
 
-    let makeLrcPtrValue com ctx (value: Rust.Expr) =
-        [ value ] |> makeNew com ctx "Native" "LrcPtr"
+    let makeLrcPtrValue com ctx (value: Rust.Expr) = [ value ] |> makeNew com ctx "std::rc" "Rc"
 
-    // let makeLrcValue com ctx (value: Rust.Expr) =
-    //     [ value ] |> makeNew com ctx "Native" "Lrc"
+    let makeRcValue com ctx (value: Rust.Expr) = [ value ] |> makeNew com ctx "std::rc" "Rc"
 
-    let makeRcValue com ctx (value: Rust.Expr) = [ value ] |> makeNew com ctx "Native" "Rc"
-
-    let makeArcValue com ctx (value: Rust.Expr) = [ value ] |> makeNew com ctx "Native" "Arc"
+    let makeArcValue com ctx (value: Rust.Expr) =
+        [ value ] |> makeNew com ctx "std::sync" "Arc"
 
     let makeBoxValue com ctx (value: Rust.Expr) =
-        [ value ] |> makeNew com ctx "Native" (rawIdent "Box")
+        [ value ] //|> makeNew com ctx "Native" (rawIdent "Box")
+        |> makeNew com ctx "" "Box"
 
     let makeMutValue com ctx (value: Rust.Expr) = value
     // [ value ] |> makeNew com ctx "Native" "MutCell"
@@ -1433,7 +1432,7 @@ module Util =
         elif shouldBeRefCountWrapped com ctx typ |> Option.isSome then
             expr |> makeAsRef
         else
-            expr |> mkAddrOfExpr
+            expr |> makeAsRef //|> mkAddrOfExpr
 
     let negateWhen isNegative expr =
         if isNegative then
@@ -1598,7 +1597,7 @@ module Util =
         if isStruct then
             expr
         else
-            expr |> makeLrcPtrValue com ctx
+            expr
 
     let makeRecord (com: IRustCompiler) ctx r values entRef genArgs =
         let ent = com.GetEntity(entRef)
@@ -3227,7 +3226,8 @@ module Util =
                         for filePath in trie.Values do
                             let modName = getImportModuleName com filePath
                             let useItem = mkGlobUseItem [] ("crate" :: modName :: modNames)
-                            yield useItem |> mkPublicItem
+                            // yield useItem |> mkPublicItem
+                            ()
                     for KeyValue(key, trie) in trie.Children do
                         let items = toItems (key :: mods) trie
                         let modItem = mkModItem [] key items
@@ -4908,13 +4908,29 @@ module Util =
         System.String.Format("module_{0:x}", stableStringHash relPath)
 
     let transformImports (com: IRustCompiler) ctx (imports: Import list) : Rust.Item list =
-        imports
-        |> List.groupBy (fun import -> import.ModulePath)
-        |> List.sortBy (fun (modulePath, _) -> modulePath)
-        |> List.collect (fun (_modulePath, moduleImports) ->
+        let sorted = Dictionary<string, ResizeArray<Import>>()
+
+        for i in imports do
+            match sorted.TryGetValue(i.ModulePath) with
+            | false, _ ->
+                let new_arr = ResizeArray()
+                new_arr.Add(i)
+                sorted.Add(i.ModulePath, new_arr)
+            | true, v -> v.Add(i)
+
+        let items = ResizeArray()
+
+        for entry in sorted do
+            let modulePath = entry.Key
+            let moduleImports = entry.Value
+
             moduleImports
-            |> List.sortBy (fun import -> import.Selector)
-            |> List.map (fun import ->
+            |> Seq.sortBy (fun import -> import.Selector)
+            |> Seq.iter (fun import ->
+                let currfile_no_ext = Path.GetFileNameWithoutExtension(com.CurrentFile)
+                let is_local = import.Path.StartsWith("./")
+                // stdout.WriteLine $"curr:####: {currfile}"
+                // stdout.WriteLine $"proj:####: {com.ProjectFile}"
                 // stdout.WriteLine $"importing####: {import.Path}"
                 // stdout.WriteLine $"importing####M: {import.ModulePath}"
                 // stdout.WriteLine $"importing####L: {import.LocalIdent}"
@@ -4922,16 +4938,15 @@ module Util =
                 let modPath =
                     if import.Path.Length = 0 || import.Selector.StartsWith "std::" then
                         [] // empty path, means direct import of the selector
+                    elif is_local then
+                        [ "crate"; currfile_no_ext ]
                     else
                         [ "crate" ]
 
                 match import.Selector with
                 | ""
                 | "*"
-                | "default" ->
-                    // let useItem = mkGlobUseItem [] modPath
-                    // [useItem]
-                    []
+                | "default" -> ()
                 | _ ->
                     let parts = splitNameParts import.Selector
 
@@ -4942,10 +4957,12 @@ module Util =
                             None
 
                     let useItem = mkSimpleUseItem [] (modPath @ parts) alias
-                    [ useItem ]
+                    items.Add(useItem)
+                    ()
             )
-            |> List.concat
-        )
+
+        items |> Seq.toList
+
 
     let getIdentForImport (ctx: Context) (path: string) (selector: string) =
         match selector with

@@ -18,7 +18,6 @@
     <Content Include="..\..\temp\fable-library-js\**\*.*" PackagePath="fable-library-js\" />
     <Content Include="..\..\temp\fable-library-ts\**\*.*" PackagePath="fable-library-ts\" />
     <Content Include="..\..\temp\fable-library-py\**\*.*" PackagePath="fable-library-py\" />
-    <Content Include="..\..\temp\fable-library-rust\**\*.*" PackagePath="fable-library-rust\" />
     <Content Include="..\..\temp\fable-library-dart\**\*.*" PackagePath="fable-library-dart\" />
     <Content Include="..\fable-library-php\**\*.*" PackagePath="fable-library-php\" />
   </ItemGroup>

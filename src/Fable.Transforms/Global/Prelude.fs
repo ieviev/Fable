@@ -31,9 +31,9 @@ module Tuple =
 
 [<RequireQualifiedAccess>]
 module Tuple3 =
-    let item1 (x, _, _) = x
-    let item2 (_, y, _) = y
-    let item3 (_, _, z) = z
+    let item1(x, _, _) = x
+    let item2(_, y, _) = y
+    let item3(_, _, z) = z
 
 [<RequireQualifiedAccess>]
 module Option =
@@ -147,7 +147,7 @@ module List =
         | _ :: xs1, _ :: xs2 -> sameLength xs1 xs2
         | _ -> false
 
-    let splitLast (xs: 'a list) =
+    let splitLast(xs: 'a list) =
         let rec splitListInner acc =
             function
             | [] -> failwith "List is empty"
@@ -236,7 +236,7 @@ module Patterns =
         else
             None
 
-    let (|ListLast|_|) (xs: 'a list) =
+    let (|ListLast|_|)(xs: 'a list) =
         if List.isEmpty xs then
             None
         else
@@ -249,9 +249,9 @@ module Path =
     [<Literal>]
     let dummyFile = "__DUMMY-FILE__.txt"
 
-    let normalizePath (path: string) = path.Replace('\\', '/').TrimEnd('/')
+    let normalizePath(path: string) = path.Replace('\\', '/').TrimEnd('/')
 
-    let Combine (path1: string, path2: string) =
+    let Combine(path1: string, path2: string) =
 #if FABLE_COMPILER
         // TODO: Make sure path2 is not absolute in the polyfill
         let path1 =
@@ -271,7 +271,7 @@ module Path =
         IO.Path.Combine(path1, path2)
 #endif
 
-    let ChangeExtension (path: string, ext: string) =
+    let ChangeExtension(path: string, ext: string) =
         let i = path.LastIndexOf(".")
 
         if i < 0 then
@@ -279,7 +279,7 @@ module Path =
         else
             path.Substring(0, i) + ext
 
-    let GetExtension (path: string) =
+    let GetExtension(path: string) =
         let i = path.LastIndexOf(".")
 
         if i < 0 then
@@ -287,12 +287,12 @@ module Path =
         else
             path.Substring(i)
 
-    let GetFileName (path: string) =
+    let GetFileName(path: string) =
         let normPath = normalizePath path
         let i = normPath.LastIndexOf("/")
         normPath.Substring(i + 1)
 
-    let GetFileNameWithoutExtension (path: string) =
+    let GetFileNameWithoutExtension(path: string) =
         let filename = GetFileName path
         let i = filename.LastIndexOf(".")
 
@@ -301,7 +301,7 @@ module Path =
         else
             filename.Substring(0, i)
 
-    let GetDirectoryName (path: string) =
+    let GetDirectoryName(path: string) =
         let normPath = normalizePath path
         let i = normPath.LastIndexOf("/")
 
@@ -310,7 +310,7 @@ module Path =
         else
             normPath.Substring(0, i)
 
-    let GetDirectoryAndFileNames (path: string) =
+    let GetDirectoryAndFileNames(path: string) =
         let normPath = normalizePath path
         let i = normPath.LastIndexOf("/")
 
@@ -319,14 +319,14 @@ module Path =
         else
             normPath.Substring(0, i), normPath.Substring(i + 1)
 
-    let IsPathRooted (path: string) : bool =
+    let IsPathRooted(path: string) : bool =
 #if FABLE_COMPILER
         path.StartsWith("/") || path.StartsWith("\\") || path.IndexOf(":") = 1
 #else
         IO.Path.IsPathRooted(path)
 #endif
 
-    let GetFullPath (path: string) : string =
+    let GetFullPath(path: string) : string =
 #if FABLE_COMPILER
         // In the REPL we just remove the dot dirs as in foo/.././bar > bar
         let rec removeDotDirs acc parts =
@@ -341,19 +341,19 @@ module Path =
         IO.Path.GetFullPath(path)
 #endif
 
-    let normalizeFullPath (path: string) = normalizePath (GetFullPath path)
+    let normalizeFullPath(path: string) = normalizePath (GetFullPath path)
 
     /// If path belongs to a signature file (.fsi), replace the extension with .fs
-    let ensureFsExtension (path: string) =
+    let ensureFsExtension(path: string) =
         if path.EndsWith(".fsi", StringComparison.Ordinal) then
             path.Substring(0, path.Length - 1)
         else
             path
 
-    let normalizePathAndEnsureFsExtension (path: string) = normalizePath path |> ensureFsExtension
+    let normalizePathAndEnsureFsExtension(path: string) = normalizePath path |> ensureFsExtension
 
     /// Checks if path starts with "./", ".\" or ".."
-    let isRelativePath (path: string) =
+    let isRelativePath(path: string) =
         let len = path.Length
 
         if len = 0 then
@@ -373,7 +373,13 @@ module Path =
             false
 
     /// Creates a relative path from one file or folder to another.
-    let getRelativeFileOrDirPath fromIsDir (fromFullPath: string) toIsDir (toFullPath: string) =
+    let getRelativeFileOrDirPath
+        (fromIsDir: bool)
+        (fromFullPath: string)
+        (toIsDir: bool)
+        (toFullPath: string)
+        =
+
         // Algorithm adapted from http://stackoverflow.com/a/6244188
         let pathDifference (path1: string) (path2: string) =
             let mutable c = 0 //index up to which the paths are the same
@@ -430,8 +436,8 @@ module Path =
         // let isDir = IO.Directory.Exists
         getRelativeFileOrDirPath (isDir fromFullPath) fromFullPath (isDir toFullPath) toFullPath
 
-    let getCommonPrefix (xs: string[] list) =
-        let rec getCommonPrefix (prefix: string[]) =
+    let getCommonPrefix(xs: string[] list) =
+        let rec getCommonPrefix(prefix: string[]) =
             function
             | [] -> prefix
             | (x: string[]) :: xs ->
@@ -448,8 +454,7 @@ module Path =
 
     let isChildPath (parent: string) (child: string) =
         let split x =
-            (normalizeFullPath x).Split('/')
-            |> Array.filter (String.IsNullOrWhiteSpace >> not)
+            (normalizeFullPath x).Split('/') |> Array.filter (String.IsNullOrWhiteSpace >> not)
 
         let parent = split parent
         let child = split child
@@ -458,7 +463,7 @@ module Path =
 
         commonPrefix.Length >= parent.Length
 
-    let getCommonBaseDir (filePaths: seq<string>) =
+    let getCommonBaseDir(filePaths: seq<string>) =
         filePaths
         |> Seq.map (fun filePath ->
             filePath
