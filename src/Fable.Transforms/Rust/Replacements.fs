@@ -15,34 +15,61 @@ type Context = FSharp2Fable.Context
 type ICompiler = FSharp2Fable.IFableCompiler
 type CallInfo = ReplaceCallInfo
 
-// let partialApplyAtRuntime (com: Compiler) t arity (expr: Expr) (partialArgs: Expr list) =
-//     let rec makeNestedLambda body args =
-//         match args with
-//         | [] -> body
-//         | arg::restArgs ->
-//             let body = Fable.Lambda(arg, body, None)
-//             makeNestedLambda body restArgs
-//     let makeArgIdent i typ = makeTypedIdent typ $"a{i}"
-//     let argTypes, returnType = uncurryLambdaType arity [] t
-//     let argIdents = argTypes |> List.mapi makeArgIdent
-//     let args = argIdents |> List.map Fable.IdentExpr
-//     let body = Helper.Application(expr, returnType, partialArgs @ args)
-//     makeNestedLambda body (List.rev argIdents)
+module Helpers =
+    let moduleCall
+        (sourceLocation: SourceLocation option)
+        (com)
+        (thisArg: Expr option)
+        (returnType)
+        (args)
+        (moduleName: string)
+        (memberName: string)
+        =
+        let mref =
+            GeneratedMember.Function(
+                memberName,
+                [],
+                returnType,
+                isInstance = true,
+                hasSpread = true
+            )
 
-// let curryExprAtRuntime (com: Compiler) arity (expr: Expr) =
-//     partialApplyAtRuntime com expr.Type arity expr []
+        let callee =
+            LibraryImportInfo.Create(isInstanceMember = false, isModuleMember = false)
+            |> makeImportLibWithInfo com Any memberName moduleName
 
-// let uncurryExprAtRuntime (com: Compiler) t arity (expr: Expr) =
-//     let argTypes, returnType =
-//         match t with
-//         | Fable.LambdaType(argType, returnType) -> uncurryLambdaType arity [] t
-//         | Fable.DelegateType(argTypes, returnType) -> argTypes, returnType
-//         | _ -> [], expr.Type
-//     let makeArgIdent i typ = makeTypedIdent typ $"b{i}$"
-//     let argIdents = argTypes |> List.mapi makeArgIdent
-//     let args = argIdents |> List.map Fable.IdentExpr
-//     let body = curriedApply None returnType expr args
-//     Fable.Delegate(argIdents, body, None, Fable.Tags.empty)
+        let info =
+            CallInfo.Create(
+                ?thisArg = thisArg,
+                args = args,
+                ?sigArgTypes = None,
+                ?genArgs = None,
+                ?memberRef = Some mref,
+                ?isCons = None
+            )
+
+        Call(callee, info, returnType, sourceLocation)
+
+    let moduleCallIndex
+        (
+            callee: Expr,
+            memb: string,
+            returnType: Type,
+            args: Expr list,
+            argTypes: Type list option,
+            genArgs: Type list option,
+            loc: SourceLocation option
+        )
+        : Expr
+        =
+        let callee = getField callee memb
+
+        let info = CallInfo.Create(args = args, ?sigArgTypes = argTypes, ?genArgs = genArgs)
+        // Call(callee, info, returnType, loc)
+        Call(callee, info, returnType, loc)
+
+    let indexExpr = 1
+
 
 let error(msg: Expr) = msg
 
@@ -292,14 +319,14 @@ let toString com (ctx: Context) r (args: Expr list) =
         | String -> head
         | Char -> Helper.LibCall(com, "String", "ofChar", String, [ head ])
         | Boolean -> Helper.LibCall(com, "String", "ofBoolean", String, [ head ])
-        | Number(BigInt, _) -> Helper.LibCall(com, "BigInt", "toString", String, args)
-        | Number(Decimal, _) -> Helper.LibCall(com, "Decimal", "toString", String, args)
+        | Number(BigInt, _) -> Helper.LibCall(com, "BigInt", "to_string", String, args)
+        | Number(Decimal, _) -> Helper.LibCall(com, "Decimal", "to_string", String, args)
         // | Array _ | List _ ->
         //     Helper.LibCall(com, "Types", "seqToString", String, [head], ?loc=r)
         // | DeclaredType(ent, _) when ent.IsFSharpUnion || ent.IsFSharpRecord || ent.IsValueType ->
         //     Helper.InstanceCall(head, "toString", String, [], ?loc=r)
         // | DeclaredType(ent, _) ->
-        | _ -> Helper.LibCall(com, "String", "toString", String, [ head ])
+        | _ -> Helper.LibCall(com, "String", "to_string", String, [ head ])
 
 let toRoundInt com (ctx: Context) r t i (args: Expr list) =
     let sourceType = args.Head.Type
@@ -765,6 +792,19 @@ let tryCoreOp com r t coreModule coreMember args =
     let op = Helper.LibValue(com, coreModule, coreMember, Any)
     tryOp com r t op args
 
+let fsil_rust
+    (com: ICompiler)
+    (ctx: Context)
+    r
+    t
+    (i: CallInfo)
+    (thisArg: Expr option)
+    (args: Expr list)
+    =
+    failwith $"{i.DeclaringEntityFullName} :: {i.CompiledName}"
+// match i.DeclaringEntityFullName, i.CompiledName with
+
+
 let fableCoreLib
     (com: ICompiler)
     (ctx: Context)
@@ -775,6 +815,16 @@ let fableCoreLib
     (args: Expr list)
     =
     match i.DeclaringEntityFullName, i.CompiledName with
+    // | _, "nativeOnly" ->
+    //     let ga = i.GenericArgs[0]
+    //     match ga with
+    //     | DeclaredType(er,t) ->
+    //         match er.FullName with
+    //         | "fsil_rust.str" ->
+    //             failwith $"args:{args}, this:{thisArg}, "
+    //             Some args[0]
+    //         | _ -> failwith $"nativeOnly{i}"
+    //     | _ -> failwith $"nativeOnly{i}"
     | _, UniversalFableCoreHelpers com ctx r t i args error expr -> Some expr
     | "Fable.Core.Reflection", meth ->
         Helper.LibCall(com, "Reflection", meth, t, args, ?loc = r) |> Some
@@ -807,6 +857,13 @@ let fableCoreLib
         | "importAll", [ RequireStringConst com ctx r path ] ->
             makeImportUserGenerated r t "*" path |> Some
         | _ -> None
+
+    // match i.CompiledName, args with
+    // | "import", [ RequireStringConst com ctx r selector; RequireStringConst com ctx r path ] ->
+    //     makeImportUserGenerated r t selector path |> Some
+    // | "importAll", [ RequireStringConst com ctx r path ] ->
+    //     makeImportUserGenerated r t "*" path |> Some
+    // | _ -> None
     | _ -> None
 
 let refCells
@@ -885,16 +942,6 @@ let fsharpModule
     Helper.LibCall(com, moduleName, memberName, t, args, i.SignatureArgTypes, ?loc = r)
     |> Some
 
-// // TODO: This is likely broken
-// let getPrecompiledLibMangledName entityName memberName overloadSuffix isStatic =
-//     let memberName = Naming.sanitizeIdentForbiddenChars memberName
-//     let entityName = Naming.sanitizeIdentForbiddenChars entityName
-//     let name, memberPart =
-//         match entityName, isStatic with
-//         | "", _ -> memberName, Naming.NoMemberPart
-//         | _, true -> entityName, Naming.StaticMemberPart(memberName, overloadSuffix)
-//         | _, false -> entityName, Naming.InstanceMemberPart(memberName, overloadSuffix)
-//     Naming.buildNameWithoutSanitation name memberPart |> Naming.checkJsKeywords
 
 let makeRustFormatString interpolated (fmt: string) =
     let pattern1 = @"([^%]?)%([0+\- ]*)(\*|\d+)?(\.\d+)?(\w)"
@@ -2959,33 +3006,35 @@ let keyValuePairs (com: ICompiler) (ctx: Context) r t (i: CallInfo) thisArg args
 let dictionaries
     (com: ICompiler)
     (ctx: Context)
-    r
-    t
+    (r: SourceLocation option)
+    (t: Type)
     (i: CallInfo)
     (thisArg: Expr option)
     (args: Expr list)
+    : Expr option
     =
+    let inline mk_module_call moduleName memberName =
+        Helpers.moduleCall r com thisArg t args moduleName memberName
+
     match i.CompiledName, thisArg with
     | ".ctor", None ->
         match i.SignatureArgTypes with
-        | [] -> Helper.LibCall(com, "HashMap", "new_empty", t, args) |> Some
-        | [ Number _ ] -> Helper.LibCall(com, "HashMap", "new_with_capacity", t, args) |> Some
-        | [ IEqualityComparer ] ->
-            Helper.LibCall(com, "HashMap", "new_with_comparer", t, args) |> Some
-        | [ Number _; IEqualityComparer ] ->
-            Helper.LibCall(com, "HashMap", "new_with_capacity_comparer", t, args) |> Some
-        | [ IEnumerable ] -> Helper.LibCall(com, "HashMap", "new_from_enumerable", t, args) |> Some
-        | [ IEnumerable; IEqualityComparer ] ->
-            Helper.LibCall(com, "HashMap", "new_from_enumerable_comparer", t, args) |> Some
-        | [ IDictionary ] -> Helper.LibCall(com, "HashMap", "new_from_dictionary", t, args) |> Some
-        | [ IDictionary; IEqualityComparer ] ->
-            Helper.LibCall(com, "HashMap", "new_from_dictionary_comparer", t, args) |> Some
+        | [] -> Some(mk_module_call "std::collections" "HashMap::new")
+        | [ Number _ ] -> Some(mk_module_call "std::collections" "HashMap::new")
+        | [ IEnumerable ] -> Some(mk_module_call "std::collections" "HashMap::new")
+        | [ IDictionary ] -> Some(mk_module_call "std::collections" "HashMap::new")
         | _ -> None
     | "GetEnumerator", Some c ->
         let ar = Helper.LibCall(com, "HashMap", "entries", t, [ c ], [ c.Type ])
         Helper.LibCall(com, "Seq", "Enumerable::ofArray", t, [ ar ], ?loc = r) |> Some
-    | "get_Item", Some c -> makeLibModuleCall com r t i "HashMap" "get" thisArg args |> Some
-    | "set_Item", Some c -> makeLibModuleCall com r t i "HashMap" "set" thisArg args |> Some
+    | "get_Item", Some c -> getExpr r t c args[0] |> Some
+    | "set_Item", Some c ->
+        let valuetype = Fable.AST.Fable.Type.Option(args[1].Type, false)
+        Some(Helper.InstanceCall(c, "insert", valuetype, args))
+    // setExpr r c args[0] args[1] |> Some
+    | "Add", Some c ->
+        let valuetype = Fable.AST.Fable.Type.Option(args[1].Type, false)
+        Some(Helper.InstanceCall(c, "insert", valuetype, args))
     | meth, _ ->
         let meth = Naming.removeGetSetPrefix meth |> Naming.lowerFirst
         makeLibModuleCall com r t i "HashMap" meth thisArg args |> Some
@@ -4560,7 +4609,9 @@ let tryCall
     (thisArg: Expr option)
     (args: Expr list)
     =
+    // stdout.WriteLine $"{info.DeclaringEntityFullName} : {info.CompiledName}"
     match info.DeclaringEntityFullName with
+    | Naming.StartsWith "fsil" _ -> fsil_rust com ctx r t info thisArg args
     | Patterns.DicContains replacedModules replacement -> replacement com ctx r t info thisArg args
     | "Microsoft.FSharp.Core.LanguagePrimitives.ErrorStrings" -> errorStrings info.CompiledName
     | Types.printfModule
@@ -4624,6 +4675,7 @@ let tryBaseConstructor com ctx (ent: EntityRef) (argTypes: Lazy<Type list>) genA
     | _ -> None
 
 let tryType typ =
+    // stdout.WriteLine $"typ: {typ}"
     match typ with
     | Boolean -> Some(Types.bool, parseBool, [])
     | Number(kind, info) ->

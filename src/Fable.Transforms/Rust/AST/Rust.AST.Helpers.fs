@@ -45,8 +45,12 @@ module Naming =
             stripRaw ident // no need to keep it raw here
 
     let splitNameParts(name: string) =
-        name.Split([| "."; "::" |], System.StringSplitOptions.RemoveEmptyEntries)
-        |> List.ofArray
+        let args = name.Split([| "."; "::" |], System.StringSplitOptions.RemoveEmptyEntries)
+        // if Array.last args = "new" then
+        //     [| yield! args[..args.Length - 3]; args[args.Length - 2] + "::new" |]
+        // else
+        args
+
 
 [<AutoOpen>]
 module Idents =
@@ -757,7 +761,8 @@ module Exprs =
 
     let mkBinaryExpr op left right : Expr = ExprKind.Binary(op, left, right) |> mkExpr
 
-    let mkAssignOpExpr op left right : Expr = ExprKind.AssignOp(op, left, right) |> mkExpr
+    let mkAssignOpExpr (op: BinOp) (left: P<Expr>) (right: P<Expr>) : Expr =
+        ExprKind.AssignOp(op, left, right) |> mkExpr
 
     let mkAssignExpr left right : Expr =
         ExprKind.Assign(left, right, DUMMY_SP) |> mkExpr
