@@ -58,5 +58,3 @@ let import<'T> (selector: string) (path: string) : 'T = nativeOnly
 
 /// Imports a whole external module.
 let importAll<'T>(path: string) : 'T = nativeOnly
-
-let import<'T> (selector: string) (path: string) : 'T = nativeOnly

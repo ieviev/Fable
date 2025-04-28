@@ -1460,7 +1460,7 @@ module Util =
         elif shouldBeRefCountWrapped com ctx typ |> Option.isSome then
             expr |> makeAsRef
         else
-            expr |> makeAsRef //|> mkAddrOfExpr
+            expr //|> makeAsRef //|> mkAddrOfExpr
 
     let negateWhen isNegative expr =
         if isNegative then
@@ -1870,7 +1870,7 @@ module Util =
         let memberDecl: Fable.MemberDecl =
             {
                 Name = memb.Name
-                Args = memb.Args
+                Args = memb.Args |> List.skip 1
                 Body = body
                 MemberRef = memb.MemberRef
                 IsMangled = memb.IsMangled
@@ -1899,16 +1899,16 @@ module Util =
             // TODO: support non-interface types with constructors
             // TODO: add captured idents to non-interface types
 
-            let entRef, genArgs =
-                match typ with
-                | Fable.DeclaredType(entRef, genArgs) -> entRef, genArgs
-                | Fable.Any -> makeEntRef "System.Object" "System.Runtime", []
-                | _ ->
-                    "Unsupported object expression" |> addWarning com [] None
-                    makeEntRef "System.Object" "System.Runtime", []
+            // let entRef, genArgs =
+            //     match typ with
+            //     | Fable.DeclaredType(entRef, genArgs) -> entRef, genArgs
+            //     | Fable.Any -> makeEntRef "System.Object" "System.Runtime", []
+            //     | _ ->
+            //         "Unsupported object expression" |> addWarning com [] None
+            //         makeEntRef "System.Object" "System.Runtime", []
 
-            let ent = com.GetEntity(entRef)
-            let entName = "ObjectExpr"
+            // let ent = com.GetEntity(entRef)
+            // let entName = "ObjectExpr"
 
             // collect all captured idents as fields
             let mutable fieldsMap = Map.empty
@@ -1921,81 +1921,91 @@ module Util =
                     memberDecl
                 )
 
-            let decl: Fable.ClassDecl =
-                {
-                    Name = entName
-                    Entity = entRef
-                    Constructor = None
-                    BaseCall = baseCall
-                    AttachedMembers = members
-                    XmlDoc = None
-                    Tags = []
-                }
+            let mems = members |> List.collect (transformMemberDecl com ctx)
+            let declStmts = mems |> List.map mkItemStmt
+            declStmts |> mkBlock |> mkBlockExpr
 
-            let fieldIdents =
-                fieldsMap.Values
-                |> Seq.map (fun ident ->
-                    { ident with Type = FableTransforms.uncurryType ident.Type }
-                )
-                |> Seq.toList
+    // mkPublicItem []
 
-            let exprFields =
-                fieldIdents
-                |> List.map (fun ident ->
-                    let expr = transformIdent com ctx None ident //|> makeClone
-                    let fieldName = ident.Name |> sanitizeMember
-                    mkExprField [] fieldName expr false false
-                )
+    // let decl: Fable.ClassDecl =
+    //     {
+    //         Name = entName
+    //         Entity = entRef
+    //         Constructor = None
+    //         BaseCall = baseCall
+    //         AttachedMembers = members
+    //         XmlDoc = None
+    //         Tags = []
+    //     }
 
-            let fieldIdents =
-                if isValidBaseType com entRef then
-                    let typ = Fable.DeclaredType(entRef, genArgs)
-                    let baseIdent = makeTypedIdent typ baseName
-                    baseIdent :: fieldIdents
-                else
-                    fieldIdents
+    // let fieldIdents =
+    //     fieldsMap.Values
+    //     |> Seq.map (fun ident ->
+    //         { ident with Type = FableTransforms.uncurryType ident.Type }
+    //     )
+    //     |> Seq.toList
 
-            let fields =
-                fieldIdents
-                |> List.map (fun ident ->
-                    let fieldTy = transformIdentType com ctx true ident
-                    let fieldName = ident.Name |> sanitizeMember
-                    mkField [] fieldName fieldTy false
-                )
+    // let exprFields =
+    //     fieldIdents
+    //     |> List.map (fun ident ->
+    //         let expr = transformIdent com ctx None ident //|> makeClone
+    //         let fieldName = ident.Name |> sanitizeMember
+    //         mkExprField [] fieldName expr false false
+    //     )
 
-            let exprFields =
-                match baseCall with
-                | Some ctorExpr when isValidBaseType com entRef ->
-                    let baseExpr = transformExpr com ctx ctorExpr
-                    let fieldName = baseName |> sanitizeMember
-                    let exprField = mkExprField [] fieldName baseExpr false false
-                    exprField :: exprFields
-                | _ -> exprFields
+    // let fieldIdents =
+    //     if isValidBaseType com entRef then
+    //         let typ = Fable.DeclaredType(entRef, genArgs)
+    //         let baseIdent = makeTypedIdent typ baseName
+    //         baseIdent :: fieldIdents
+    //     else
+    //         fieldIdents
 
-            let attrs = [ mkAttr "derive" (makeDerivedFrom com ent) ]
-            let generics = makeGenerics com ctx genArgs
-            let genParams = FSharp2Fable.Util.getGenParamTypes genArgs
+    // let fields =
+    //     fieldIdents
+    //     |> List.map (fun ident ->
+    //         let fieldTy = transformIdentType com ctx true ident
+    //         let fieldName = ident.Name |> sanitizeMember
+    //         mkField [] fieldName fieldTy false
+    //     )
 
-            let structItems = [ mkStructItem attrs entName fields generics ]
+    // let exprFields =
+    //     match baseCall with
+    //     | Some ctorExpr when isValidBaseType com entRef ->
+    //         let baseExpr = transformExpr com ctx ctorExpr
+    //         let fieldName = baseName |> sanitizeMember
+    //         let exprField = mkExprField [] fieldName baseExpr false false
+    //         exprField :: exprFields
+    //     | _ -> exprFields
 
-            let memberItems = transformClassMembers com ctx genArgs decl
+    // let attrs = [ mkAttr "derive" (makeDerivedFrom com ent) ]
+    // let generics = makeGenerics com ctx genArgs
+    // let genParams = FSharp2Fable.Util.getGenParamTypes genArgs
 
-            let objExpr =
-                // match baseCall with
-                // | Some fableExpr -> com.TransformExpr(ctx, fableExpr) //TODO:
-                // | None ->
-                let genArgsOpt = transformGenArgs com ctx genParams
-                let path = makeFullNamePath entName genArgsOpt
-                let expr = mkStructExpr path exprFields |> makeLrcPtrValue com ctx
+    // // let structItems = [ mkStructItem attrs entName fields generics ]
 
-                if ent.IsInterface then
-                    makeInterfaceCast com ctx typ expr
-                else
-                    expr
+    // let memberItems = transformClassMembers com ctx genArgs decl
 
-            let declStmts = structItems @ memberItems |> List.map mkItemStmt
-            let objStmts = [ objExpr |> mkExprStmt ]
-            declStmts @ objStmts |> mkBlock |> mkBlockExpr
+    // let objExpr =
+    //     // match baseCall with
+    //     // | Some fableExpr -> com.TransformExpr(ctx, fableExpr) //TODO:
+    //     // | None ->
+    //     let genArgsOpt = transformGenArgs com ctx genParams
+    //     let path = makeFullNamePath entName genArgsOpt
+    //     let expr = mkStructExpr path exprFields |> makeLrcPtrValue com ctx
+
+    //     if ent.IsInterface then
+    //         makeInterfaceCast com ctx typ expr
+    //     else
+    //         expr
+
+    // let declStmts = structItems @ memberItems |> List.map mkItemStmt
+
+    // let objStmts = [ objExpr |> mkExprStmt ]
+    // // declStmts @
+    // objStmts |> mkBlock |> mkBlockExpr
+    // let declStmts = memberItems |> List.map mkItemStmt
+    // declStmts |> mkBlock |> mkBlockExpr
 
     let maybeAddParens fableExpr (expr: Rust.Expr) : Rust.Expr =
         match fableExpr with
@@ -3966,57 +3976,51 @@ module Util =
 
     let transformModuleLetValue
         (com: IRustCompiler)
-        ctx
+        (ctx: Context)
         (memb: Fable.MemberFunctionOrValue)
         (decl: Fable.MemberDecl)
+        : AST.Types.Item list
         =
-        // expected output:
-        // pub fn value() -> T {
-        //     static value: OnceInit<T> = OnceInit::new();
-        //     value.get_or_init(|| initValue).clone()
-        // }
-        let name = Fable.Naming.splitLast decl.Name
-        let typ = decl.Body.Type
-
-        let initNone = makeNew com ctx "Native" "OnceInit" []
+        // todo: wasm api
+        // let name = Fable.Naming.splitLast decl.Name
+        // let typ = decl.Body.Type
         let value = transformLeaveContext com ctx None decl.Body
+        // let ty = transformType com ctx typ
+        // stdout.WriteLine "expr:"
 
-        let value =
-            if memb.IsMutable then
-                value |> makeMutValue com ctx |> makeLrcPtrValue com ctx
-            else
-                value
+        let statements =
+            match value.kind with
+            | Fable.Transforms.Rust.AST.Types.ExprKind.Block(st, lbl) -> st
+            | _ -> failwith "todo1"
 
-        let ty = transformType com ctx typ
+        let items =
+            [|
+                for st in statements.stmts do
+                    // stdout.WriteLine st
+                    match st.kind with
+                    | Fable.Transforms.Rust.AST.Types.StmtKind.Item(it) ->
+                        let attr1 = mkAttr "wasm_bindgen" []
+                        it.attrs.Add(attr1)
+                        it
+                    | _ -> ()
+            |]
 
-        let ty =
-            if memb.IsMutable then
-                ty //|> makeMutTy com ctx |> makeLrcPtrTy com ctx
-            else
-                ty
+        // mkItemStmt
+        // mkFnItem
 
-        let staticTy = [ ty ] |> makeImportType com ctx "Native" "OnceInit"
-        let staticStmt = mkStaticItem [] name staticTy (Some initNone) |> mkItemStmt
 
-        let callee = com.TransformExpr(ctx, makeIdentExpr name)
+        // let attrs = transformAttributes com ctx memb.Attributes memb.XmlDoc
+        // let fnBody = [ mkExprStmt value ] |> mkBlock |> Some
 
-        let closureExpr =
-            let fnDecl = mkFnDecl [] VOID_RETURN_TY
-            mkClosureExpr false fnDecl value
+        // let fnDecl = mkFnDecl [] (mkFnRetTy ty)
+        // let fnKind = mkFnKind DEFAULT_FN_HEADER fnDecl NO_GENERICS fnBody
+        // let fnItem = mkFnItem attrs name fnKind
+        [ yield! items ]
 
-        let valueStmt =
-            mkMethodCallExpr "get_or_init" None callee [ closureExpr ] |> makeClone |> mkExprStmt
-
-        let attrs = transformAttributes com ctx memb.Attributes memb.XmlDoc
-
-        let fnBody = [ staticStmt; valueStmt ] |> mkBlock |> Some
-
-        let fnDecl = mkFnDecl [] (mkFnRetTy ty)
-        let fnKind = mkFnKind DEFAULT_FN_HEADER fnDecl NO_GENERICS fnBody
-        let fnItem = mkFnItem attrs name fnKind
-
-        let memberItem = fnItem |> memberItemWithVis com ctx memb
-        [ memberItem ]
+    // let modItem = [ yield! items ] |> mkModItem [] decl.Name
+    // let modItem = modItem |> mkPublicItem
+    // // [ yield! items ]
+    // [ modItem ]
 
     // // is the member return type the same as the entity
     // let isFluentMemberType (ent: Fable.Entity) = function
@@ -4972,7 +4976,12 @@ module Util =
             let modItem = modItem |> entityItemWithVis com ctx ent
             [ modItem ]
 
-    let transformMemberDecl (com: IRustCompiler) ctx (decl: Fable.MemberDecl) =
+    let transformMemberDecl
+        (com: IRustCompiler)
+        (ctx: Context)
+        (decl: Fable.MemberDecl)
+        : AST.Types.Item list
+        =
         let memb = com.GetMember(decl.MemberRef)
 
         let memberItems =
