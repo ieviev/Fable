@@ -5080,7 +5080,8 @@ module Util =
                     if import.Path.Length = 0 || import.Selector.StartsWith "std::" then
                         [||] // empty path, means direct import of the selector
                     elif is_local then
-                        [| "crate"; currfile_no_ext |]
+                        // [| "crate"; currfile_no_ext |]
+                        [| "crate" |]
                     else
                         [| "crate" |]
 
