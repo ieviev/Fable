@@ -22,7 +22,6 @@
     <Compile Include="Replacements.Util.fs" />
     <Compile Include="Python/Replacements.fs" />
     <Compile Include="Rust/Replacements.fs" />
-    <Compile Include="Dart/Replacements.fs" />
     <Compile Include="Replacements.fs" />
     <Compile Include="Replacements.Api.fs" />
     <Compile Include="FSharp2Fable.fsi" />
@@ -35,12 +34,6 @@
     <Compile Include="Python/Python.fs" />
     <Compile Include="Python/Fable2Python.fs" />
     <Compile Include="Python/PythonPrinter.fs" />
-    <Compile Include="Php/Php.fs" />
-    <Compile Include="Php/Fable2Php.fs" />
-    <Compile Include="Php/PhpPrinter.fs" />
-    <Compile Include="Dart/Dart.fs" />
-    <Compile Include="Dart/Fable2Dart.fs" />
-    <Compile Include="Dart/DartPrinter.fs" />
     <Compile Include="Rust/RustPrinter.fs" />
     <Compile Include="Rust/Fable2Rust.fs" />
     <Compile Include="State.fs" />

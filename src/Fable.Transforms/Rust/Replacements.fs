@@ -792,18 +792,6 @@ let tryCoreOp com r t coreModule coreMember args =
     let op = Helper.LibValue(com, coreModule, coreMember, Any)
     tryOp com r t op args
 
-let fsil_rust
-    (com: ICompiler)
-    (ctx: Context)
-    r
-    t
-    (i: CallInfo)
-    (thisArg: Expr option)
-    (args: Expr list)
-    =
-    failwith $"{i.DeclaringEntityFullName} :: {i.CompiledName}"
-// match i.DeclaringEntityFullName, i.CompiledName with
-
 
 let fableCoreLib
     (com: ICompiler)
@@ -856,7 +844,11 @@ let fableCoreLib
             makeImportUserGenerated r t selector path |> Some
         | "importAll", [ RequireStringConst com ctx r path ] ->
             makeImportUserGenerated r t "*" path |> Some
-        | _ -> None
+        | "mod", [ RequireStringConst com ctx r path ] ->
+            makeImportUserGenerated r t "mod" path |> Some
+        | _ ->
+            failwith $"unhandled rust fn %A{i}"
+            None
 
     // match i.CompiledName, args with
     // | "import", [ RequireStringConst com ctx r selector; RequireStringConst com ctx r path ] ->
@@ -4611,12 +4603,13 @@ let tryCall
     =
     // stdout.WriteLine $"{info.DeclaringEntityFullName} : {info.CompiledName}"
     match info.DeclaringEntityFullName with
-    | Naming.StartsWith "fsil" _ -> fsil_rust com ctx r t info thisArg args
     | Patterns.DicContains replacedModules replacement -> replacement com ctx r t info thisArg args
     | "Microsoft.FSharp.Core.LanguagePrimitives.ErrorStrings" -> errorStrings info.CompiledName
     | Types.printfModule
     | Naming.StartsWith Types.printfFormat _ -> fsFormat com ctx r t info thisArg args
-    | Naming.StartsWith "Fable.Core." _ -> fableCoreLib com ctx r t info thisArg args
+    | Naming.StartsWith "Fable.Core." _ ->
+
+        fableCoreLib com ctx r t info thisArg args
     | Naming.EndsWith "Exception" _ -> exceptions com ctx r t info thisArg args
     | "System.Timers.ElapsedEventArgs" -> thisArg // only signalTime is available here
     | Naming.StartsWith "System.Tuple" _

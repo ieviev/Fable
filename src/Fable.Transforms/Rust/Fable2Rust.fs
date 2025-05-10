@@ -92,39 +92,10 @@ module Helpers =
             )
 
 
-module Fsil =
-    open Fable.AST.Fable
+module Hooks =
+    // let mutable moduleDeclHook = None
+    ()
 
-    let transformFsilCall
-        (com: IRustCompiler)
-        (ctx: Context)
-        (range: option<SourceLocation>)
-        (typ: Fable.Type)
-        (calleeExpr: Fable.Expr)
-        (callInfo: Fable.CallInfo)
-        : AST.Types.Expr
-        =
-
-
-        match calleeExpr with
-        | Fable.Import(info, t, r) ->
-            match info.Kind with
-            | MemberImport(memberref) ->
-                match memberref with
-                | MemberRef(declaringentity, info) ->
-                    match declaringentity.FullName, info.CompiledName with
-                    | "fsil_rust.str", "from" ->
-                        let arg0: Expr = callInfo.Args[0]
-                        // stdout.WriteLine $"m {declaringentity.FullName}: args:  {callInfo.Args}"
-                        match arg0 with
-                        | Expr.Value(ValueKind.StringConstant sc, range) -> mkStrLitExpr sc
-                        | _ -> failwith $"args:  {callInfo.Args}"
-                    | fn, cn -> failwith $"unknown fsil expr: {fn} . {cn}"
-                | GeneratedMemberRef(item) -> failwith $"unknown fsil expr: {calleeExpr}"
-            | UserImport(isinline) -> failwith $"unknown fsil expr: {calleeExpr}"
-            | LibraryImport(info) -> failwith $"unknown fsil expr: {calleeExpr}"
-            | ClassImport(entref) -> failwith $"unknown fsil expr: {calleeExpr}"
-        | _ -> failwith $"unknown fsil expr: {calleeExpr}"
 
 module Namespace =
 
@@ -883,7 +854,8 @@ module TypeInfo =
         if ctx.InferAnyType then
             mkInferTy ()
         else
-            failwith "any type"
+            mkInferTy ()
+    // failwith "any type"
 
     let isInferredGenericParam com ctx name isMeasure =
         isMeasure
@@ -2164,9 +2136,6 @@ module Util =
             | _ -> makeInstanceCall com ctx info.Name calleeExpr args
 
         | Fable.Import(info, t, r) ->
-            if info.Selector.StartsWith "fsil_rust." then
-                Fsil.transformFsilCall com ctx range typ calleeExpr callInfo
-            else
             // library imports without args need explicit genArgs
             // this is for imports like Array.empty, Seq.empty etc.
             let needGenArgs = List.isEmpty callArgs || info.Selector.EndsWith("::new_with_capacity")
@@ -3299,9 +3268,13 @@ module Util =
 
                 [ modItem; useItem |> mkPublicItem ]
 
+
+            let rawmods = (com :?> Compiler.RustCompiler).GetRawModules()
+            let rawModItems = rawmods |> Seq.map (fun v -> mkUnloadedModItem [] v) |> Seq.toList
+
             let modItems = com.GetAllModules() |> List.sort |> List.collect makeModItems
 
-            modItems
+            rawModItems @ modItems
         else
             []
 
@@ -3903,6 +3876,11 @@ module Util =
             // typ.IsUnit
             match info.Kind with
             | Fable.AST.Fable.ImportKind.UserImport(isInline) ->
+                if info.Selector = "mod" then
+                    let comp = com :?> Compiler.RustCompiler
+                    comp.ImportModule(info.Path)
+                else
+
                 com.GetImportName(ctx, info.Selector, info.Path, None) |> ignore
             | _ -> failwith $"import: {info}"
 
@@ -3933,8 +3911,8 @@ module Util =
         // | Unresolved(expr,typ,range) -> failwith "todo"
         // | Extended(expr,range) -> failwith "todo"
         | _ ->
-            // stdout.WriteLine $"{body}"
-            failwith "module actions unsuppoted"
+            // Hooks.moduleDeclHook body
+            failwith $"module actions unsupported: {body}, {ctx}"
 
 
     let transformModuleFunction
@@ -3991,7 +3969,11 @@ module Util =
         let statements =
             match value.kind with
             | Fable.Transforms.Rust.AST.Types.ExprKind.Block(st, lbl) -> st
-            | _ -> failwith "todo1"
+            | Fable.Transforms.Rust.AST.Types.ExprKind.Let(st, expr) ->
+                match expr.kind with
+                | Fable.Transforms.Rust.AST.Types.ExprKind.Block(st, lbl) -> st
+                | _ -> failwith $"todo let: {expr.kind}"
+            | _ -> failwith $"todo: {value.kind}"
 
         let items =
             [|
@@ -5129,11 +5111,17 @@ module Compiler =
     // global list of import modules and namespaces (across files)
     let importModules = ConcurrentDictionary<string, bool>()
     let importNamespaces = ConcurrentDictionary<string * string, bool>()
+    let rawModules = HashSet<string>()
+
 
     // per file
     type RustCompiler(com: Fable.Compiler) =
         let onlyOnceWarnings = HashSet<string>()
         let imports = Dictionary<string, Import>()
+
+        member _.ImportModule(name: string) = rawModules.Add(name) |> ignore
+
+        member _.GetRawModules() = rawModules |> Seq.toArray
 
         interface IRustCompiler with
             member _.WarnOnlyOnce(msg, ?range) =
@@ -5175,10 +5163,7 @@ module Compiler =
                                 Depths = [ ctx.ModuleDepth ]
                             }
                         // add import module to a global list (across files)
-                        if
-                            path.Length > 0 && not (modulePath.Contains("RUST_LIBRARY_PATH"))
-                        // && not (modulePath.Contains("::"))
-                        then
+                        if path.Length > 0 && not (modulePath.Contains("RUST_LIBRARY_PATH")) then
                             importModules.TryAdd(modulePath, true) |> ignore
 
                         imports.Add(cacheKey, import)

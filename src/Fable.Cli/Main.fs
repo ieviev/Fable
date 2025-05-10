@@ -1408,7 +1408,11 @@ let startCompilationAsync state =
 
             match compilationResult.ExitCode with
             | 0 -> return Ok(state, logs)
-            | _ -> return Error("Compilation failed", logs)
+            | _ ->
+                for e in logs do
+                    stdout.WriteLine $"%A{e}"
+
+                return Error("Compilation failed", logs)
 
         with
         | Fable.FableError e -> return Error(e, [||])

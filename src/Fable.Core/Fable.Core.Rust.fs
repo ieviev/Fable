@@ -58,3 +58,7 @@ let import<'T> (selector: string) (path: string) : 'T = nativeOnly
 
 /// Imports a whole external module.
 let importAll<'T>(path: string) : 'T = nativeOnly
+
+/// Imports a whole external module.
+let ``mod``(path: string) : 'T = nativeOnly
+let ``pub mod``(path: string) : 'T = nativeOnly

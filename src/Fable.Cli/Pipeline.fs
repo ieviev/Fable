@@ -379,94 +379,6 @@ module Python =
                 | _ -> ()
         }
 
-module Php =
-    type PhpWriter(com: Compiler, cliArgs: CliArgs, pathResolver, targetPath: string) =
-        let sourcePath = com.CurrentFile
-        let fileExt = cliArgs.CompilerOptions.FileExtension
-        let stream = new IO.StreamWriter(targetPath)
-
-        interface Printer.Writer with
-            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
-
-            member _.MakeImportPath(path) =
-                let projDir = IO.Path.GetDirectoryName(cliArgs.ProjectFile)
-
-                let path =
-                    Imports.getImportPath
-                        pathResolver
-                        sourcePath
-                        targetPath
-                        projDir
-                        cliArgs.OutDir
-                        path
-
-                if path.EndsWith(".fs", StringComparison.Ordinal) then
-                    Path.ChangeExtension(path, fileExt)
-                else
-                    path
-
-            member _.AddSourceMapping(_, _, _, _, _, _) = ()
-
-            member _.AddLog(msg, severity, ?range) =
-                com.AddLog(msg, severity, ?range = range, fileName = com.CurrentFile)
-
-            member _.Dispose() = stream.Dispose()
-
-    let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPath: string) =
-        async {
-            let php =
-                FSharp2Fable.Compiler.transformFile com
-                |> FableTransforms.transformFile com
-                |> Fable2Php.Compiler.transformFile com
-
-            if not (isSilent || PhpPrinter.isEmpty php) then
-                use writer = new PhpWriter(com, cliArgs, pathResolver, outPath)
-                do! PhpPrinter.run writer php
-        }
-
-module Dart =
-    type DartWriter(com: Compiler, cliArgs: CliArgs, pathResolver, targetPath: string) =
-        let sourcePath = com.CurrentFile
-        let fileExt = cliArgs.CompilerOptions.FileExtension
-        let projDir = IO.Path.GetDirectoryName(cliArgs.ProjectFile)
-        let stream = new IO.StreamWriter(targetPath)
-
-        interface Printer.Writer with
-            member _.Write(str) = stream.WriteAsync(str) |> Async.AwaitTask
-
-            member _.MakeImportPath(path) =
-                let path =
-                    Imports.getImportPath
-                        pathResolver
-                        sourcePath
-                        targetPath
-                        projDir
-                        cliArgs.OutDir
-                        path
-
-                if path.EndsWith(".fs", StringComparison.Ordinal) then
-                    Path.ChangeExtension(path, fileExt)
-                else
-                    path
-
-            member _.AddSourceMapping(_, _, _, _, _, _) = ()
-
-            member _.AddLog(msg, severity, ?range) =
-                com.AddLog(msg, severity, ?range = range, fileName = com.CurrentFile)
-
-            member _.Dispose() = stream.Dispose()
-
-    let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPath: string) =
-        async {
-            let file =
-                FSharp2Fable.Compiler.transformFile com
-                |> FableTransforms.transformFile com
-                |> Fable2Dart.Compiler.transformFile com
-
-            if not (isSilent || DartPrinter.isEmpty file) then
-                use writer = new DartWriter(com, cliArgs, pathResolver, outPath)
-                do! DartPrinter.run writer file
-        }
 
 module Rust =
     open Fable.Transforms.Rust
@@ -550,6 +462,5 @@ let compileFile (com: Compiler) (cliArgs: CliArgs) pathResolver isSilent (outPat
     | JavaScript
     | TypeScript -> Js.compileFile com cliArgs pathResolver isSilent outPath
     | Python -> Python.compileFile com cliArgs pathResolver isSilent outPath
-    | Php -> Php.compileFile com cliArgs pathResolver isSilent outPath
-    | Dart -> Dart.compileFile com cliArgs pathResolver isSilent outPath
     | Rust -> Rust.compileFile com cliArgs pathResolver isSilent outPath
+    | l -> failwith $"unsupported: {l}"

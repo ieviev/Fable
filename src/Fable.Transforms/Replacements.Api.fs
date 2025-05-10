@@ -34,7 +34,6 @@ let tryField (com: ICompiler) returnTyp ownerTyp fieldName =
     match com.Options.Language with
     | Rust -> Rust.Replacements.tryField com returnTyp ownerTyp fieldName
     | Python -> Py.Replacements.tryField com returnTyp ownerTyp fieldName
-    | Dart -> Dart.Replacements.tryField com returnTyp ownerTyp fieldName
     | _ -> JS.Replacements.tryField com returnTyp ownerTyp fieldName
 
 let tryBaseConstructor
@@ -47,7 +46,6 @@ let tryBaseConstructor
     =
     match com.Options.Language with
     | Python -> Py.Replacements.tryBaseConstructor com ctx ent argTypes genArgs args
-    | Dart -> Dart.Replacements.tryBaseConstructor com ctx ent argTypes genArgs args
     | Rust -> Rust.Replacements.tryBaseConstructor com ctx ent argTypes genArgs args
     | _ -> JS.Replacements.tryBaseConstructor com ctx ent argTypes genArgs args
 
@@ -65,28 +63,24 @@ let tryType (com: ICompiler) (t: Type) =
     match com.Options.Language with
     | Rust -> Rust.Replacements.tryType t
     | Python -> Py.Replacements.tryType t
-    | Dart -> Dart.Replacements.tryType t
     | _ -> JS.Replacements.tryType t
 
 let tryCall (com: ICompiler) ctx r t info thisArg args =
     match com.Options.Language with
     | Rust -> Rust.Replacements.tryCall com ctx r t info thisArg args
     | Python -> Py.Replacements.tryCall com ctx r t info thisArg args
-    | Dart -> Dart.Replacements.tryCall com ctx r t info thisArg args
     | _ -> JS.Replacements.tryCall com ctx r t info thisArg args
 
 let error (com: ICompiler) msg =
     match com.Options.Language with
     | Python -> Py.Replacements.error msg
     | Rust -> Rust.Replacements.error msg
-    | Dart -> Dart.Replacements.error msg
     | _ -> JS.Replacements.error msg
 
 let defaultof (com: ICompiler) ctx r typ =
     match com.Options.Language with
     | Rust -> Rust.Replacements.getZero com ctx typ
     | Python -> Py.Replacements.defaultof com ctx r typ
-    | Dart -> Dart.Replacements.getZero com ctx typ
     | _ -> JS.Replacements.defaultof com ctx r typ
 
 let createMutablePublicValue (com: ICompiler) value =
@@ -102,40 +96,34 @@ let getRefCell (com: ICompiler) r typ (expr: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.getRefCell com r typ expr
     | Rust -> Rust.Replacements.getRefCell com r typ expr
-    | Dart -> Dart.Replacements.getRefCell com r typ expr
     | _ -> JS.Replacements.getRefCell com r typ expr
 
 let setRefCell (com: ICompiler) r (expr: Expr) (value: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.setRefCell com r expr value
     | Rust -> Rust.Replacements.setRefCell com r expr value
-    | Dart -> Dart.Replacements.setRefCell com r expr value
     | _ -> JS.Replacements.setRefCell com r expr value
 
 let makeRefCellFromValue (com: ICompiler) r (value: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.makeRefCellFromValue com r value
     | Rust -> Rust.Replacements.makeRefCellFromValue com r value
-    | Dart -> Dart.Replacements.makeRefCellFromValue com r value
     | _ -> JS.Replacements.makeRefCellFromValue com r value
 
 let makeRefFromMutableFunc (com: ICompiler) ctx r t (value: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.makeRefFromMutableFunc com ctx r t value
     | Rust -> Rust.Replacements.makeRefFromMutableFunc com ctx r t value
-    | Dart -> Dart.Replacements.makeRefFromMutableFunc com ctx r t value
     | _ -> JS.Replacements.makeRefFromMutableFunc com ctx r t value
 
 let makeRefFromMutableValue (com: ICompiler) ctx r t (value: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.makeRefFromMutableValue com ctx r t value
     | Rust -> Rust.Replacements.makeRefFromMutableValue com ctx r t value
-    | Dart -> Dart.Replacements.makeRefFromMutableValue com ctx r t value
     | _ -> JS.Replacements.makeRefFromMutableValue com ctx r t value
 
 let makeRefFromMutableField (com: ICompiler) ctx r t (value: Expr) =
     match com.Options.Language with
     | Python -> Py.Replacements.makeRefFromMutableField com ctx r t value
     | Rust -> Rust.Replacements.makeRefFromMutableField com ctx r t value
-    | Dart -> Dart.Replacements.makeRefFromMutableField com ctx r t value
     | _ -> JS.Replacements.makeRefFromMutableField com ctx r t value
